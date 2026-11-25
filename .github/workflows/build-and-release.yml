@@ -16,11 +16,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build-and-release:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -65,6 +64,26 @@ jobs:
           files: |
             firmware.bin
             installer/bldb-factory.bin
+
+      - name: Upload Installer Bundle for Pages Job
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-installer-files
+          path: installer/
+          retention-days: 1
+
+  deploy-pages:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download Installer Bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: web-installer-files
+          path: installer
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
