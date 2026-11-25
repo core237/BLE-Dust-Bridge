@@ -1,0 +1,14 @@
+{
+  "name": "BLE Dust Bridge",
+  "version": "1.0.0",
+  "new_install_prompt_erase": false,
+  "improv": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "bldb-factory.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

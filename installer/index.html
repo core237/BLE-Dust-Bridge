@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BLE Dust Bridge · Web Installer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23283b31%22/><circle cx=%2216%22 cy=%2216%22 r=%227%22 fill=%22%23f7f3e3%22/></svg>">
+  <style>
+    :root {
+      --bg: #283b31;
+      --cream: #f7f3e3;
+      --subcard: #fbf9f1;
+      --input: #ffffff;
+      --btn-idle: #eef0eb;
+      --accent: #283b31;
+      --accent-soft: #e3ece6;
+      --danger: #b83232;
+      --danger-soft: #f8e6e6;
+      --border: #dfd9c5;
+      --text: #1f2e26;
+      --sub: #5c6b63;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .card {
+      width: 100%;
+      max-width: 430px;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.4rem;
+      color: var(--accent);
+    }
+    .lead {
+      margin: 0 0 22px 0;
+      font-size: 0.92rem;
+      color: var(--sub);
+      line-height: 1.5;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--accent);
+      color: var(--cream);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.92; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--btn-idle);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(20, 31, 25, 0.78);
+    }
+    .modal-card {
+      width: 100%;
+      max-width: 410px;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 22px;
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+      color: var(--text);
+      text-align: left;
+    }
+    .modal-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .modal-title {
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1.3;
+    }
+    .close-x {
+      background: transparent;
+      border: none;
+      color: var(--sub);
+      font-size: 1.45rem;
+      line-height: 1;
+      padding: 0 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-lg {
+      width: 44px;
+      height: 44px;
+      border: 3.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 14px auto 14px auto;
+    }
+    .ring-wrap {
+      position: relative;
+      width: 124px;
+      height: 124px;
+      margin: 10px auto 14px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ring-pct {
+      position: absolute;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+    .subbox {
+      background: var(--subcard);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .inp {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      background: var(--input);
+      color: var(--text);
+      outline: none;
+    }
+    .inp:focus { border-color: var(--accent); }
+    .inp:disabled { opacity: 0.48; cursor: not-allowed; }
+    .net-list {
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input);
+      margin-bottom: 10px;
+    }
+    .net-item {
+      padding: 9px 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.86rem;
+      border-bottom: 1px solid #ebe6d5;
+      cursor: pointer;
+    }
+    .net-item:last-child { border-bottom: none; }
+    .net-item:hover, .net-item.active { background: var(--accent-soft); }
+    .menu-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--subcard);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.94rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+    }
+    .menu-btn:hover { border-color: #9eb8a8; background: #f3f6f2; }
+    .menu-btn.danger {
+      background: var(--danger-soft);
+      border-color: #dfb0b0;
+      color: var(--danger);
+    }
+    .menu-btn.danger:hover { background: #f4dcdc; }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-row > button { flex: 1; }
+    .link-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .qr-single {
+      position: relative;
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .qr-print-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--subcard);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--accent);
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .qr-print-btn:hover {
+      background: var(--accent-soft);
+      border-color: #9eb8a8;
+    }
+    #bldb-print-sheet { display: none; }
+    @media print {
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+      }
+      #bldb-connect-card, #bldb-modal { display: none !important; }
+      #bldb-print-sheet {
+        display: inline-block !important;
+        border: 1.5px dashed #888888;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #1f2e26;
+        text-align: center;
+      }
+      #bldb-print-sheet .ps-title {
+        font-size: 13pt;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #1f2e26;
+      }
+      #bldb-print-sheet .ps-grid {
+        display: flex;
+        gap: 18px;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      #bldb-print-sheet .ps-item {
+        width: 140px;
+        text-align: center;
+      }
+      #bldb-print-sheet .ps-item svg {
+        width: 124px;
+        height: 124px;
+        display: block;
+        margin: 0 auto 6px auto;
+      }
+      #bldb-print-sheet .ps-lbl {
+        font-size: 8.5pt;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+      #bldb-print-sheet .ps-sub {
+        font-family: monospace;
+        font-size: 8pt;
+        font-weight: 600;
+        color: #333333;
+      }
+    }
+    .qr-single svg {
+      width: 136px;
+      height: 136px;
+      display: block;
+      margin: 0 auto;
+    }
+    .qr-single .qr-lbl {
+      margin-top: 8px;
+    }
+    .btn-primary:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+    .skip-link {
+      display: inline-block;
+      margin-top: 11px;
+      background: transparent;
+      border: none;
+      color: var(--sub);
+      font-size: 0.84rem;
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    .skip-link:hover { color: var(--accent); }
+    .skip-link:disabled { opacity: 0.45; cursor: not-allowed; }
+    .menu-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .qr-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .qr-card {
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 8px;
+      text-align: center;
+    }
+    .qr-card svg {
+      width: 104px;
+      height: 104px;
+      display: block;
+      margin: 0 auto 6px auto;
+    }
+    .qr-lbl {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1.25;
+    }
+    .err-msg {
+      display: none;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--danger);
+    }
+    .browser-warn {
+      display: none;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--danger-soft);
+      border: 1px solid #dfb0b0;
+      color: var(--danger);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="bldb-connect-card" class="card">
+    <h1>BLE Dust Bridge</h1>
+    <p class="lead">Connect your M5Stack AtomS3 Lite via USB-C using Chrome, Brave or Edge to install firmware.</p>
+    <button id="connect-btn" class="btn-primary" type="button">Connect</button>
+    <div id="no-serial-msg" class="browser-warn">Web Serial is not supported in this browser. Please open this page in Chrome, Brave, or Edge.</div>
+  </div>
+
+  <div id="bldb-modal" class="modal-overlay">
+    <div id="bldb-modal-card" class="modal-card"></div>
+  </div>
+
+  <div id="bldb-print-sheet" aria-hidden="true"></div>
+
+  <script type="module">
+    import { ESPLoader, Transport } from 'https://unpkg.com/esptool-js@0.5.7/bundle.js';
+
+    const connectBtn = document.getElementById('connect-btn');
+    const modalOverlay = document.getElementById('bldb-modal');
+    const connectCard = document.getElementById('bldb-connect-card');
+    const modalCard = document.getElementById('bldb-modal-card');
+
+    if (!('serial' in navigator)) {
+      connectBtn.disabled = true;
+      document.getElementById('no-serial-msg').style.display = 'block';
+    }
+
+    const state = {
+      port: null,
+      reader: null,
+      readLoopActive: false,
+      rxBytes: [],
+      deviceInfo: null,
+      improvState: 0,
+      deviceIpUrl: '',
+      wifiNetworks: [],
+      wifiScanning: false,
+      wifiScannedOnce: false,
+      lastDebugMsg: '',
+      apClients: 0,
+      wifiAttemptSsid: '',
+      currentScreen: '',
+      confirmFromMenu: false,
+      improvResolvers: []
+    };
+
+    function escHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    const EXT_LINK_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-left:5px;flex-shrink:0;" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+    const LOCK_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+    const PRINT_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+    const QR_WIFI_AP_SVG = `<svg viewBox="0 0 33 33" shape-rendering="crispEdges" aria-label="Join dustbridge_setup Wi-Fi QR"><rect width="33" height="33" fill="#ffffff"/><path fill="#1f2e26" d="M2,2h1v1h-1zM3,2h1v1h-1zM4,2h1v1h-1zM5,2h1v1h-1zM6,2h1v1h-1zM7,2h1v1h-1zM8,2h1v1h-1zM10,2h1v1h-1zM11,2h1v1h-1zM12,2h1v1h-1zM15,2h1v1h-1zM16,2h1v1h-1zM17,2h1v1h-1zM19,2h1v1h-1zM20,2h1v1h-1zM21,2h1v1h-1zM22,2h1v1h-1zM24,2h1v1h-1zM25,2h1v1h-1zM26,2h1v1h-1zM27,2h1v1h-1zM28,2h1v1h-1zM29,2h1v1h-1zM30,2h1v1h-1zM2,3h1v1h-1zM8,3h1v1h-1zM10,3h1v1h-1zM12,3h1v1h-1zM13,3h1v1h-1zM15,3h1v1h-1zM18,3h1v1h-1zM19,3h1v1h-1zM22,3h1v1h-1zM24,3h1v1h-1zM30,3h1v1h-1zM2,4h1v1h-1zM4,4h1v1h-1zM5,4h1v1h-1zM6,4h1v1h-1zM8,4h1v1h-1zM11,4h1v1h-1zM14,4h1v1h-1zM18,4h1v1h-1zM20,4h1v1h-1zM24,4h1v1h-1zM26,4h1v1h-1zM27,4h1v1h-1zM28,4h1v1h-1zM30,4h1v1h-1zM2,5h1v1h-1zM4,5h1v1h-1zM5,5h1v1h-1zM6,5h1v1h-1zM8,5h1v1h-1zM10,5h1v1h-1zM13,5h1v1h-1zM14,5h1v1h-1zM16,5h1v1h-1zM17,5h1v1h-1zM19,5h1v1h-1zM22,5h1v1h-1zM24,5h1v1h-1zM26,5h1v1h-1zM27,5h1v1h-1zM28,5h1v1h-1zM30,5h1v1h-1zM2,6h1v1h-1zM4,6h1v1h-1zM5,6h1v1h-1zM6,6h1v1h-1zM8,6h1v1h-1zM11,6h1v1h-1zM12,6h1v1h-1zM13,6h1v1h-1zM16,6h1v1h-1zM18,6h1v1h-1zM19,6h1v1h-1zM21,6h1v1h-1zM24,6h1v1h-1zM26,6h1v1h-1zM27,6h1v1h-1zM28,6h1v1h-1zM30,6h1v1h-1zM2,7h1v1h-1zM8,7h1v1h-1zM11,7h1v1h-1zM14,7h1v1h-1zM15,7h1v1h-1zM17,7h1v1h-1zM18,7h1v1h-1zM20,7h1v1h-1zM21,7h1v1h-1zM24,7h1v1h-1zM30,7h1v1h-1zM2,8h1v1h-1zM3,8h1v1h-1zM4,8h1v1h-1zM5,8h1v1h-1zM6,8h1v1h-1zM7,8h1v1h-1zM8,8h1v1h-1zM10,8h1v1h-1zM12,8h1v1h-1zM14,8h1v1h-1zM16,8h1v1h-1zM18,8h1v1h-1zM20,8h1v1h-1zM22,8h1v1h-1zM24,8h1v1h-1zM25,8h1v1h-1zM26,8h1v1h-1zM27,8h1v1h-1zM28,8h1v1h-1zM29,8h1v1h-1zM30,8h1v1h-1zM10,9h1v1h-1zM13,9h1v1h-1zM14,9h1v1h-1zM17,9h1v1h-1zM18,9h1v1h-1zM19,9h1v1h-1zM21,9h1v1h-1zM22,9h1v1h-1zM2,10h1v1h-1zM4,10h1v1h-1zM5,10h1v1h-1zM7,10h1v1h-1zM8,10h1v1h-1zM9,10h1v1h-1zM13,10h1v1h-1zM15,10h1v1h-1zM17,10h1v1h-1zM18,10h1v1h-1zM19,10h1v1h-1zM20,10h1v1h-1zM21,10h1v1h-1zM24,10h1v1h-1zM27,10h1v1h-1zM29,10h1v1h-1zM30,10h1v1h-1zM2,11h1v1h-1zM3,11h1v1h-1zM5,11h1v1h-1zM7,11h1v1h-1zM10,11h1v1h-1zM13,11h1v1h-1zM14,11h1v1h-1zM15,11h1v1h-1zM16,11h1v1h-1zM17,11h1v1h-1zM20,11h1v1h-1zM21,11h1v1h-1zM22,11h1v1h-1zM24,11h1v1h-1zM25,11h1v1h-1zM26,11h1v1h-1zM28,11h1v1h-1zM29,11h1v1h-1zM4,12h1v1h-1zM5,12h1v1h-1zM7,12h1v1h-1zM8,12h1v1h-1zM11,12h1v1h-1zM12,12h1v1h-1zM14,12h1v1h-1zM15,12h1v1h-1zM18,12h1v1h-1zM20,12h1v1h-1zM22,12h1v1h-1zM26,12h1v1h-1zM27,12h1v1h-1zM28,12h1v1h-1zM29,12h1v1h-1zM6,13h1v1h-1zM7,13h1v1h-1zM12,13h1v1h-1zM14,13h1v1h-1zM17,13h1v1h-1zM18,13h1v1h-1zM20,13h1v1h-1zM21,13h1v1h-1zM22,13h1v1h-1zM23,13h1v1h-1zM27,13h1v1h-1zM2,14h1v1h-1zM6,14h1v1h-1zM8,14h1v1h-1zM10,14h1v1h-1zM11,14h1v1h-1zM13,14h1v1h-1zM14,14h1v1h-1zM16,14h1v1h-1zM18,14h1v1h-1zM19,14h1v1h-1zM22,14h1v1h-1zM23,14h1v1h-1zM25,14h1v1h-1zM27,14h1v1h-1zM28,14h1v1h-1zM4,15h1v1h-1zM6,15h1v1h-1zM7,15h1v1h-1zM14,15h1v1h-1zM16,15h1v1h-1zM17,15h1v1h-1zM19,15h1v1h-1zM21,15h1v1h-1zM23,15h1v1h-1zM24,15h1v1h-1zM5,16h1v1h-1zM7,16h1v1h-1zM8,16h1v1h-1zM12,16h1v1h-1zM14,16h1v1h-1zM15,16h1v1h-1zM20,16h1v1h-1zM21,16h1v1h-1zM22,16h1v1h-1zM25,16h1v1h-1zM27,16h1v1h-1zM28,16h1v1h-1zM29,16h1v1h-1zM30,16h1v1h-1zM2,17h1v1h-1zM5,17h1v1h-1zM6,17h1v1h-1zM7,17h1v1h-1zM11,17h1v1h-1zM12,17h1v1h-1zM13,17h1v1h-1zM16,17h1v1h-1zM21,17h1v1h-1zM24,17h1v1h-1zM26,17h1v1h-1zM27,17h1v1h-1zM3,18h1v1h-1zM4,18h1v1h-1zM8,18h1v1h-1zM12,18h1v1h-1zM14,18h1v1h-1zM16,18h1v1h-1zM17,18h1v1h-1zM18,18h1v1h-1zM19,18h1v1h-1zM20,18h1v1h-1zM23,18h1v1h-1zM25,18h1v1h-1zM26,18h1v1h-1zM27,18h1v1h-1zM28,18h1v1h-1zM30,18h1v1h-1zM3,19h1v1h-1zM9,19h1v1h-1zM12,19h1v1h-1zM13,19h1v1h-1zM14,19h1v1h-1zM16,19h1v1h-1zM17,19h1v1h-1zM18,19h1v1h-1zM19,19h1v1h-1zM20,19h1v1h-1zM22,19h1v1h-1zM23,19h1v1h-1zM24,19h1v1h-1zM25,19h1v1h-1zM30,19h1v1h-1zM2,20h1v1h-1zM5,20h1v1h-1zM8,20h1v1h-1zM10,20h1v1h-1zM13,20h1v1h-1zM14,20h1v1h-1zM15,20h1v1h-1zM16,20h1v1h-1zM17,20h1v1h-1zM19,20h1v1h-1zM22,20h1v1h-1zM23,20h1v1h-1zM26,20h1v1h-1zM4,21h1v1h-1zM5,21h1v1h-1zM6,21h1v1h-1zM7,21h1v1h-1zM9,21h1v1h-1zM10,21h1v1h-1zM11,21h1v1h-1zM13,21h1v1h-1zM14,21h1v1h-1zM15,21h1v1h-1zM16,21h1v1h-1zM19,21h1v1h-1zM20,21h1v1h-1zM23,21h1v1h-1zM24,21h1v1h-1zM25,21h1v1h-1zM28,21h1v1h-1zM29,21h1v1h-1zM30,21h1v1h-1zM3,22h1v1h-1zM4,22h1v1h-1zM5,22h1v1h-1zM7,22h1v1h-1zM8,22h1v1h-1zM9,22h1v1h-1zM10,22h1v1h-1zM11,22h1v1h-1zM15,22h1v1h-1zM16,22h1v1h-1zM19,22h1v1h-1zM20,22h1v1h-1zM21,22h1v1h-1zM22,22h1v1h-1zM23,22h1v1h-1zM24,22h1v1h-1zM25,22h1v1h-1zM26,22h1v1h-1zM28,22h1v1h-1zM29,22h1v1h-1zM30,22h1v1h-1zM10,23h1v1h-1zM12,23h1v1h-1zM13,23h1v1h-1zM14,23h1v1h-1zM18,23h1v1h-1zM21,23h1v1h-1zM22,23h1v1h-1zM26,23h1v1h-1zM28,23h1v1h-1zM2,24h1v1h-1zM3,24h1v1h-1zM4,24h1v1h-1zM5,24h1v1h-1zM6,24h1v1h-1zM7,24h1v1h-1zM8,24h1v1h-1zM10,24h1v1h-1zM13,24h1v1h-1zM14,24h1v1h-1zM16,24h1v1h-1zM18,24h1v1h-1zM21,24h1v1h-1zM22,24h1v1h-1zM24,24h1v1h-1zM26,24h1v1h-1zM29,24h1v1h-1zM2,25h1v1h-1zM8,25h1v1h-1zM10,25h1v1h-1zM11,25h1v1h-1zM14,25h1v1h-1zM15,25h1v1h-1zM16,25h1v1h-1zM20,25h1v1h-1zM22,25h1v1h-1zM26,25h1v1h-1zM2,26h1v1h-1zM4,26h1v1h-1zM5,26h1v1h-1zM6,26h1v1h-1zM8,26h1v1h-1zM11,26h1v1h-1zM17,26h1v1h-1zM18,26h1v1h-1zM19,26h1v1h-1zM22,26h1v1h-1zM23,26h1v1h-1zM24,26h1v1h-1zM25,26h1v1h-1zM26,26h1v1h-1zM28,26h1v1h-1zM29,26h1v1h-1zM2,27h1v1h-1zM4,27h1v1h-1zM5,27h1v1h-1zM6,27h1v1h-1zM8,27h1v1h-1zM10,27h1v1h-1zM13,27h1v1h-1zM14,27h1v1h-1zM15,27h1v1h-1zM17,27h1v1h-1zM18,27h1v1h-1zM19,27h1v1h-1zM22,27h1v1h-1zM26,27h1v1h-1zM27,27h1v1h-1zM30,27h1v1h-1zM2,28h1v1h-1zM4,28h1v1h-1zM5,28h1v1h-1zM6,28h1v1h-1zM8,28h1v1h-1zM10,28h1v1h-1zM11,28h1v1h-1zM12,28h1v1h-1zM13,28h1v1h-1zM14,28h1v1h-1zM15,28h1v1h-1zM16,28h1v1h-1zM18,28h1v1h-1zM20,28h1v1h-1zM23,28h1v1h-1zM25,28h1v1h-1zM27,28h1v1h-1zM28,28h1v1h-1zM30,28h1v1h-1zM2,29h1v1h-1zM8,29h1v1h-1zM11,29h1v1h-1zM15,29h1v1h-1zM16,29h1v1h-1zM17,29h1v1h-1zM18,29h1v1h-1zM22,29h1v1h-1zM23,29h1v1h-1zM24,29h1v1h-1zM25,29h1v1h-1zM27,29h1v1h-1zM29,29h1v1h-1zM2,30h1v1h-1zM3,30h1v1h-1zM4,30h1v1h-1zM5,30h1v1h-1zM6,30h1v1h-1zM7,30h1v1h-1zM8,30h1v1h-1zM10,30h1v1h-1zM11,30h1v1h-1zM14,30h1v1h-1zM15,30h1v1h-1zM16,30h1v1h-1zM18,30h1v1h-1zM20,30h1v1h-1zM21,30h1v1h-1zM22,30h1v1h-1zM24,30h1v1h-1zM26,30h1v1h-1zM29,30h1v1h-1z"/></svg>`;
+    const QR_SETUP_URL_SVG = `<svg viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="Open http://192.168.4.1 QR"><rect width="29" height="29" fill="#ffffff"/><path fill="#1f2e26" d="M2,2h1v1h-1zM3,2h1v1h-1zM4,2h1v1h-1zM5,2h1v1h-1zM6,2h1v1h-1zM7,2h1v1h-1zM8,2h1v1h-1zM10,2h1v1h-1zM11,2h1v1h-1zM13,2h1v1h-1zM14,2h1v1h-1zM15,2h1v1h-1zM17,2h1v1h-1zM20,2h1v1h-1zM21,2h1v1h-1zM22,2h1v1h-1zM23,2h1v1h-1zM24,2h1v1h-1zM25,2h1v1h-1zM26,2h1v1h-1zM2,3h1v1h-1zM8,3h1v1h-1zM11,3h1v1h-1zM13,3h1v1h-1zM15,3h1v1h-1zM16,3h1v1h-1zM20,3h1v1h-1zM26,3h1v1h-1zM2,4h1v1h-1zM4,4h1v1h-1zM5,4h1v1h-1zM6,4h1v1h-1zM8,4h1v1h-1zM12,4h1v1h-1zM14,4h1v1h-1zM16,4h1v1h-1zM20,4h1v1h-1zM22,4h1v1h-1zM23,4h1v1h-1zM24,4h1v1h-1zM26,4h1v1h-1zM2,5h1v1h-1zM4,5h1v1h-1zM5,5h1v1h-1zM6,5h1v1h-1zM8,5h1v1h-1zM10,5h1v1h-1zM12,5h1v1h-1zM13,5h1v1h-1zM18,5h1v1h-1zM20,5h1v1h-1zM22,5h1v1h-1zM23,5h1v1h-1zM24,5h1v1h-1zM26,5h1v1h-1zM2,6h1v1h-1zM4,6h1v1h-1zM5,6h1v1h-1zM6,6h1v1h-1zM8,6h1v1h-1zM10,6h1v1h-1zM11,6h1v1h-1zM12,6h1v1h-1zM14,6h1v1h-1zM16,6h1v1h-1zM17,6h1v1h-1zM20,6h1v1h-1zM22,6h1v1h-1zM23,6h1v1h-1zM24,6h1v1h-1zM26,6h1v1h-1zM2,7h1v1h-1zM8,7h1v1h-1zM10,7h1v1h-1zM20,7h1v1h-1zM26,7h1v1h-1zM2,8h1v1h-1zM3,8h1v1h-1zM4,8h1v1h-1zM5,8h1v1h-1zM6,8h1v1h-1zM7,8h1v1h-1zM8,8h1v1h-1zM10,8h1v1h-1zM12,8h1v1h-1zM14,8h1v1h-1zM16,8h1v1h-1zM18,8h1v1h-1zM20,8h1v1h-1zM21,8h1v1h-1zM22,8h1v1h-1zM23,8h1v1h-1zM24,8h1v1h-1zM25,8h1v1h-1zM26,8h1v1h-1zM10,9h1v1h-1zM13,9h1v1h-1zM14,9h1v1h-1zM15,9h1v1h-1zM17,9h1v1h-1zM2,10h1v1h-1zM6,10h1v1h-1zM8,10h1v1h-1zM9,10h1v1h-1zM10,10h1v1h-1zM14,10h1v1h-1zM15,10h1v1h-1zM18,10h1v1h-1zM19,10h1v1h-1zM20,10h1v1h-1zM21,10h1v1h-1zM22,10h1v1h-1zM23,10h1v1h-1zM26,10h1v1h-1zM2,11h1v1h-1zM3,11h1v1h-1zM7,11h1v1h-1zM11,11h1v1h-1zM14,11h1v1h-1zM15,11h1v1h-1zM16,11h1v1h-1zM17,11h1v1h-1zM19,11h1v1h-1zM21,11h1v1h-1zM22,11h1v1h-1zM23,11h1v1h-1zM25,11h1v1h-1zM3,12h1v1h-1zM4,12h1v1h-1zM6,12h1v1h-1zM7,12h1v1h-1zM8,12h1v1h-1zM9,12h1v1h-1zM11,12h1v1h-1zM12,12h1v1h-1zM13,12h1v1h-1zM14,12h1v1h-1zM17,12h1v1h-1zM18,12h1v1h-1zM19,12h1v1h-1zM21,12h1v1h-1zM23,12h1v1h-1zM24,12h1v1h-1zM2,13h1v1h-1zM3,13h1v1h-1zM4,13h1v1h-1zM5,13h1v1h-1zM6,13h1v1h-1zM11,13h1v1h-1zM13,13h1v1h-1zM16,13h1v1h-1zM19,13h1v1h-1zM20,13h1v1h-1zM22,13h1v1h-1zM24,13h1v1h-1zM25,13h1v1h-1zM4,14h1v1h-1zM7,14h1v1h-1zM8,14h1v1h-1zM10,14h1v1h-1zM11,14h1v1h-1zM12,14h1v1h-1zM15,14h1v1h-1zM16,14h1v1h-1zM17,14h1v1h-1zM20,14h1v1h-1zM23,14h1v1h-1zM24,14h1v1h-1zM25,14h1v1h-1zM26,14h1v1h-1zM2,15h1v1h-1zM3,15h1v1h-1zM5,15h1v1h-1zM6,15h1v1h-1zM7,15h1v1h-1zM11,15h1v1h-1zM12,15h1v1h-1zM14,15h1v1h-1zM17,15h1v1h-1zM21,15h1v1h-1zM22,15h1v1h-1zM25,15h1v1h-1zM6,16h1v1h-1zM7,16h1v1h-1zM8,16h1v1h-1zM9,16h1v1h-1zM11,16h1v1h-1zM13,16h1v1h-1zM14,16h1v1h-1zM15,16h1v1h-1zM16,16h1v1h-1zM17,16h1v1h-1zM18,16h1v1h-1zM20,16h1v1h-1zM21,16h1v1h-1zM23,16h1v1h-1zM24,16h1v1h-1zM5,17h1v1h-1zM7,17h1v1h-1zM9,17h1v1h-1zM12,17h1v1h-1zM13,17h1v1h-1zM15,17h1v1h-1zM17,17h1v1h-1zM18,17h1v1h-1zM19,17h1v1h-1zM20,17h1v1h-1zM23,17h1v1h-1zM24,17h1v1h-1zM25,17h1v1h-1zM2,18h1v1h-1zM3,18h1v1h-1zM4,18h1v1h-1zM5,18h1v1h-1zM7,18h1v1h-1zM8,18h1v1h-1zM10,18h1v1h-1zM14,18h1v1h-1zM15,18h1v1h-1zM17,18h1v1h-1zM18,18h1v1h-1zM19,18h1v1h-1zM20,18h1v1h-1zM21,18h1v1h-1zM22,18h1v1h-1zM23,18h1v1h-1zM24,18h1v1h-1zM10,19h1v1h-1zM11,19h1v1h-1zM15,19h1v1h-1zM16,19h1v1h-1zM17,19h1v1h-1zM18,19h1v1h-1zM22,19h1v1h-1zM24,19h1v1h-1zM2,20h1v1h-1zM3,20h1v1h-1zM4,20h1v1h-1zM5,20h1v1h-1zM6,20h1v1h-1zM7,20h1v1h-1zM8,20h1v1h-1zM10,20h1v1h-1zM18,20h1v1h-1zM20,20h1v1h-1zM22,20h1v1h-1zM23,20h1v1h-1zM2,21h1v1h-1zM8,21h1v1h-1zM11,21h1v1h-1zM12,21h1v1h-1zM14,21h1v1h-1zM16,21h1v1h-1zM17,21h1v1h-1zM18,21h1v1h-1zM22,21h1v1h-1zM23,21h1v1h-1zM24,21h1v1h-1zM25,21h1v1h-1zM26,21h1v1h-1zM2,22h1v1h-1zM4,22h1v1h-1zM5,22h1v1h-1zM6,22h1v1h-1zM8,22h1v1h-1zM10,22h1v1h-1zM13,22h1v1h-1zM15,22h1v1h-1zM16,22h1v1h-1zM18,22h1v1h-1zM19,22h1v1h-1zM20,22h1v1h-1zM21,22h1v1h-1zM22,22h1v1h-1zM24,22h1v1h-1zM26,22h1v1h-1zM2,23h1v1h-1zM4,23h1v1h-1zM5,23h1v1h-1zM6,23h1v1h-1zM8,23h1v1h-1zM11,23h1v1h-1zM14,23h1v1h-1zM18,23h1v1h-1zM20,23h1v1h-1zM23,23h1v1h-1zM24,23h1v1h-1zM25,23h1v1h-1zM26,23h1v1h-1zM2,24h1v1h-1zM4,24h1v1h-1zM5,24h1v1h-1zM6,24h1v1h-1zM8,24h1v1h-1zM11,24h1v1h-1zM13,24h1v1h-1zM14,24h1v1h-1zM15,24h1v1h-1zM16,24h1v1h-1zM18,24h1v1h-1zM20,24h1v1h-1zM25,24h1v1h-1zM2,25h1v1h-1zM8,25h1v1h-1zM13,25h1v1h-1zM15,25h1v1h-1zM19,25h1v1h-1zM21,25h1v1h-1zM22,25h1v1h-1zM23,25h1v1h-1zM24,25h1v1h-1zM25,25h1v1h-1zM2,26h1v1h-1zM3,26h1v1h-1zM4,26h1v1h-1zM5,26h1v1h-1zM6,26h1v1h-1zM7,26h1v1h-1zM8,26h1v1h-1zM10,26h1v1h-1zM12,26h1v1h-1zM14,26h1v1h-1zM15,26h1v1h-1zM19,26h1v1h-1zM20,26h1v1h-1zM24,26h1v1h-1zM25,26h1v1h-1zM26,26h1v1h-1z"/></svg>`;
+    const QR_MDNS_URL_SVG = `<svg viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="Open http://dustbridge.local QR"><rect width="29" height="29" fill="#ffffff"/><path fill="#1f2e26" d="M2,2h1v1h-1zM3,2h1v1h-1zM4,2h1v1h-1zM5,2h1v1h-1zM6,2h1v1h-1zM7,2h1v1h-1zM8,2h1v1h-1zM11,2h1v1h-1zM13,2h1v1h-1zM15,2h1v1h-1zM16,2h1v1h-1zM17,2h1v1h-1zM18,2h1v1h-1zM20,2h1v1h-1zM21,2h1v1h-1zM22,2h1v1h-1zM23,2h1v1h-1zM24,2h1v1h-1zM25,2h1v1h-1zM26,2h1v1h-1zM2,3h1v1h-1zM8,3h1v1h-1zM10,3h1v1h-1zM11,3h1v1h-1zM12,3h1v1h-1zM13,3h1v1h-1zM14,3h1v1h-1zM16,3h1v1h-1zM17,3h1v1h-1zM18,3h1v1h-1zM20,3h1v1h-1zM26,3h1v1h-1zM2,4h1v1h-1zM4,4h1v1h-1zM5,4h1v1h-1zM6,4h1v1h-1zM8,4h1v1h-1zM11,4h1v1h-1zM12,4h1v1h-1zM13,4h1v1h-1zM14,4h1v1h-1zM16,4h1v1h-1zM20,4h1v1h-1zM22,4h1v1h-1zM23,4h1v1h-1zM24,4h1v1h-1zM26,4h1v1h-1zM2,5h1v1h-1zM4,5h1v1h-1zM5,5h1v1h-1zM6,5h1v1h-1zM8,5h1v1h-1zM11,5h1v1h-1zM14,5h1v1h-1zM16,5h1v1h-1zM17,5h1v1h-1zM20,5h1v1h-1zM22,5h1v1h-1zM23,5h1v1h-1zM24,5h1v1h-1zM26,5h1v1h-1zM2,6h1v1h-1zM4,6h1v1h-1zM5,6h1v1h-1zM6,6h1v1h-1zM8,6h1v1h-1zM10,6h1v1h-1zM11,6h1v1h-1zM12,6h1v1h-1zM13,6h1v1h-1zM15,6h1v1h-1zM16,6h1v1h-1zM17,6h1v1h-1zM20,6h1v1h-1zM22,6h1v1h-1zM23,6h1v1h-1zM24,6h1v1h-1zM26,6h1v1h-1zM2,7h1v1h-1zM8,7h1v1h-1zM15,7h1v1h-1zM16,7h1v1h-1zM17,7h1v1h-1zM18,7h1v1h-1zM20,7h1v1h-1zM26,7h1v1h-1zM2,8h1v1h-1zM3,8h1v1h-1zM4,8h1v1h-1zM5,8h1v1h-1zM6,8h1v1h-1zM7,8h1v1h-1zM8,8h1v1h-1zM10,8h1v1h-1zM12,8h1v1h-1zM14,8h1v1h-1zM16,8h1v1h-1zM18,8h1v1h-1zM20,8h1v1h-1zM21,8h1v1h-1zM22,8h1v1h-1zM23,8h1v1h-1zM24,8h1v1h-1zM25,8h1v1h-1zM26,8h1v1h-1zM12,9h1v1h-1zM14,9h1v1h-1zM15,9h1v1h-1zM18,9h1v1h-1zM2,10h1v1h-1zM4,10h1v1h-1zM6,10h1v1h-1zM8,10h1v1h-1zM12,10h1v1h-1zM15,10h1v1h-1zM18,10h1v1h-1zM22,10h1v1h-1zM25,10h1v1h-1zM2,11h1v1h-1zM3,11h1v1h-1zM4,11h1v1h-1zM5,11h1v1h-1zM6,11h1v1h-1zM13,11h1v1h-1zM18,11h1v1h-1zM20,11h1v1h-1zM26,11h1v1h-1zM2,12h1v1h-1zM4,12h1v1h-1zM6,12h1v1h-1zM7,12h1v1h-1zM8,12h1v1h-1zM11,12h1v1h-1zM13,12h1v1h-1zM14,12h1v1h-1zM15,12h1v1h-1zM18,12h1v1h-1zM20,12h1v1h-1zM21,12h1v1h-1zM22,12h1v1h-1zM24,12h1v1h-1zM25,12h1v1h-1zM26,12h1v1h-1zM2,13h1v1h-1zM3,13h1v1h-1zM4,13h1v1h-1zM6,13h1v1h-1zM7,13h1v1h-1zM10,13h1v1h-1zM12,13h1v1h-1zM13,13h1v1h-1zM15,13h1v1h-1zM16,13h1v1h-1zM17,13h1v1h-1zM18,13h1v1h-1zM20,13h1v1h-1zM25,13h1v1h-1zM4,14h1v1h-1zM5,14h1v1h-1zM8,14h1v1h-1zM9,14h1v1h-1zM11,14h1v1h-1zM14,14h1v1h-1zM15,14h1v1h-1zM18,14h1v1h-1zM19,14h1v1h-1zM20,14h1v1h-1zM21,14h1v1h-1zM23,14h1v1h-1zM25,14h1v1h-1zM26,14h1v1h-1zM4,15h1v1h-1zM7,15h1v1h-1zM10,15h1v1h-1zM11,15h1v1h-1zM13,15h1v1h-1zM14,15h1v1h-1zM15,15h1v1h-1zM18,15h1v1h-1zM20,15h1v1h-1zM23,15h1v1h-1zM26,15h1v1h-1zM2,16h1v1h-1zM8,16h1v1h-1zM9,16h1v1h-1zM12,16h1v1h-1zM13,16h1v1h-1zM14,16h1v1h-1zM15,16h1v1h-1zM16,16h1v1h-1zM19,16h1v1h-1zM20,16h1v1h-1zM22,16h1v1h-1zM24,16h1v1h-1zM25,16h1v1h-1zM26,16h1v1h-1zM3,17h1v1h-1zM4,17h1v1h-1zM6,17h1v1h-1zM7,17h1v1h-1zM10,17h1v1h-1zM14,17h1v1h-1zM15,17h1v1h-1zM16,17h1v1h-1zM17,17h1v1h-1zM19,17h1v1h-1zM23,17h1v1h-1zM25,17h1v1h-1zM2,18h1v1h-1zM4,18h1v1h-1zM6,18h1v1h-1zM7,18h1v1h-1zM8,18h1v1h-1zM9,18h1v1h-1zM12,18h1v1h-1zM13,18h1v1h-1zM15,18h1v1h-1zM17,18h1v1h-1zM18,18h1v1h-1zM19,18h1v1h-1zM20,18h1v1h-1zM21,18h1v1h-1zM22,18h1v1h-1zM23,18h1v1h-1zM10,19h1v1h-1zM11,19h1v1h-1zM13,19h1v1h-1zM15,19h1v1h-1zM17,19h1v1h-1zM18,19h1v1h-1zM22,19h1v1h-1zM23,19h1v1h-1zM24,19h1v1h-1zM25,19h1v1h-1zM26,19h1v1h-1zM2,20h1v1h-1zM3,20h1v1h-1zM4,20h1v1h-1zM5,20h1v1h-1zM6,20h1v1h-1zM7,20h1v1h-1zM8,20h1v1h-1zM11,20h1v1h-1zM16,20h1v1h-1zM17,20h1v1h-1zM18,20h1v1h-1zM20,20h1v1h-1zM22,20h1v1h-1zM25,20h1v1h-1zM26,20h1v1h-1zM2,21h1v1h-1zM8,21h1v1h-1zM12,21h1v1h-1zM13,21h1v1h-1zM15,21h1v1h-1zM16,21h1v1h-1zM18,21h1v1h-1zM22,21h1v1h-1zM23,21h1v1h-1zM26,21h1v1h-1zM2,22h1v1h-1zM4,22h1v1h-1zM5,22h1v1h-1zM6,22h1v1h-1zM8,22h1v1h-1zM10,22h1v1h-1zM12,22h1v1h-1zM14,22h1v1h-1zM15,22h1v1h-1zM18,22h1v1h-1zM19,22h1v1h-1zM20,22h1v1h-1zM21,22h1v1h-1zM22,22h1v1h-1zM25,22h1v1h-1zM26,22h1v1h-1zM2,23h1v1h-1zM4,23h1v1h-1zM5,23h1v1h-1zM6,23h1v1h-1zM8,23h1v1h-1zM13,23h1v1h-1zM14,23h1v1h-1zM17,23h1v1h-1zM18,23h1v1h-1zM21,23h1v1h-1zM22,23h1v1h-1zM24,23h1v1h-1zM2,24h1v1h-1zM4,24h1v1h-1zM5,24h1v1h-1zM6,24h1v1h-1zM8,24h1v1h-1zM10,24h1v1h-1zM11,24h1v1h-1zM13,24h1v1h-1zM14,24h1v1h-1zM18,24h1v1h-1zM21,24h1v1h-1zM22,24h1v1h-1zM23,24h1v1h-1zM26,24h1v1h-1zM2,25h1v1h-1zM8,25h1v1h-1zM11,25h1v1h-1zM14,25h1v1h-1zM15,25h1v1h-1zM18,25h1v1h-1zM19,25h1v1h-1zM22,25h1v1h-1zM23,25h1v1h-1zM25,25h1v1h-1zM2,26h1v1h-1zM3,26h1v1h-1zM4,26h1v1h-1zM5,26h1v1h-1zM6,26h1v1h-1zM7,26h1v1h-1zM8,26h1v1h-1zM10,26h1v1h-1zM13,26h1v1h-1zM14,26h1v1h-1zM16,26h1v1h-1zM17,26h1v1h-1zM18,26h1v1h-1zM21,26h1v1h-1zM25,26h1v1h-1zM26,26h1v1h-1z"/></svg>`;
+
+
+    // Lightweight zero-dependency QR SVG generator for dynamic LAN IP URLs (Byte mode, ECC-L, Versions 1-4)
+    function generateQrSvg(text, label = 'QR Code') {
+      const data = new TextEncoder().encode(text);
+      // Version capacities (Byte mode, ECC-L): V1=17, V2=32, V3=53, V4=78
+      const specs = [
+        null,
+        { size: 21, totalCodewords: 26, ecCodewords: 7, align: [] },
+        { size: 25, totalCodewords: 44, ecCodewords: 10, align: [6, 18] },
+        { size: 29, totalCodewords: 70, ecCodewords: 15, align: [6, 22] },
+        { size: 33, totalCodewords: 100, ecCodewords: 20, align: [6, 26] }
+      ];
+      let ver = 1;
+      const caps = [0, 17, 32, 53, 78];
+      while (ver <= 4 && data.length > caps[ver]) ver++;
+      if (ver > 4) return QR_MDNS_URL_SVG;
+
+      const { size, totalCodewords, ecCodewords, align } = specs[ver];
+      const dataCodewords = totalCodewords - ecCodewords;
+
+      // Build bit buffer: Mode 0100 (Byte), 8-bit length, payload, terminator, padding
+      const bits = [];
+      const pushBits = (val, len) => {
+        for (let i = len - 1; i >= 0; i--) bits.push((val >>> i) & 1);
+      };
+      pushBits(0b0100, 4);
+      pushBits(data.length, 8);
+      for (const b of data) pushBits(b, 8);
+      pushBits(0, Math.min(4, dataCodewords * 8 - bits.length));
+      while (bits.length % 8 !== 0) bits.push(0);
+
+      const cw = [];
+      for (let i = 0; i < bits.length; i += 8) {
+        let byte = 0;
+        for (let j = 0; j < 8; j++) byte = (byte << 1) | bits[i + j];
+        cw.push(byte);
+      }
+      const padBytes = [0xec, 0x11];
+      while (cw.length < dataCodewords) cw.push(padBytes[cw.length % 2]);
+
+      // GF(256) Reed-Solomon ECC
+      const gfExp = new Uint8Array(512), gfLog = new Uint8Array(256);
+      let x = 1;
+      for (let i = 0; i < 255; i++) {
+        gfExp[i] = x;
+        gfLog[x] = i;
+        x <<= 1;
+        if (x & 0x100) x ^= 0x11d;
+      }
+      for (let i = 255; i < 512; i++) gfExp[i] = gfExp[i - 255];
+      const gfMul = (a, b) => (a === 0 || b === 0) ? 0 : gfExp[gfLog[a] + gfLog[b]];
+
+      let gen = [1];
+      for (let i = 0; i < ecCodewords; i++) {
+        const next = new Array(gen.length + 1).fill(0);
+        for (let j = 0; j < gen.length; j++) {
+          next[j] ^= gen[j];
+          next[j + 1] ^= gfMul(gen[j], gfExp[i]);
+        }
+        gen = next;
+      }
+      const rem = new Array(ecCodewords).fill(0);
+      for (const b of cw) {
+        const factor = b ^ rem[0];
+        rem.shift();
+        rem.push(0);
+        for (let j = 0; j < ecCodewords; j++) rem[j] ^= gfMul(gen[j + 1], factor);
+      }
+      const allCodewords = cw.concat(rem);
+
+      // Module matrix: 0=empty, 1=white, 2=black, +4=reserved function pattern
+      const grid = Array.from({ length: size }, () => new Uint8Array(size));
+      const setFn = (r, c, dark) => {
+        if (r >= 0 && r < size && c >= 0 && c < size) grid[r][c] = (dark ? 2 : 1) | 4;
+      };
+      const placeFinder = (r0, c0) => {
+        for (let r = -1; r <= 7; r++) {
+          for (let c = -1; c <= 7; c++) {
+            const dark = r >= 0 && r <= 6 && c >= 0 && c <= 6 &&
+              (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4));
+            setFn(r0 + r, c0 + c, dark);
+          }
+        }
+      };
+      placeFinder(0, 0);
+      placeFinder(0, size - 7);
+      placeFinder(size - 7, 0);
+
+      for (let i = 8; i < size - 8; i++) {
+        setFn(6, i, i % 2 === 0);
+        setFn(i, 6, i % 2 === 0);
+      }
+      if (align.length) {
+        for (const r0 of align) {
+          for (const c0 of align) {
+            if ((r0 === 6 && c0 === 6) || (r0 === 6 && c0 === size - 7) || (r0 === size - 7 && c0 === 6)) continue;
+            for (let r = -2; r <= 2; r++) {
+              for (let c = -2; c <= 2; c++) {
+                setFn(r0 + r, c0 + c, Math.abs(r) === 2 || Math.abs(c) === 2 || (r === 0 && c === 0));
+              }
+            }
+          }
+        }
+      }
+      setFn(size - 8, 8, true);
+      // Reserve format info cells
+      for (let i = 0; i < 9; i++) {
+        if (i !== 6) { setFn(8, i, false); setFn(i, 8, false); }
+      }
+      for (let i = 0; i < 8; i++) {
+        setFn(8, size - 1 - i, false);
+        if (i < 7) setFn(size - 1 - i, 8, false);
+      }
+
+      // Place data bits in zig-zag columns (using mask 0: (r + c) % 2 === 0)
+      const fullBits = [];
+      for (const b of allCodewords) pushBits.call({ push: (v) => fullBits.push(v) }, b, 8);
+      // Simpler bit extraction:
+      fullBits.length = 0;
+      for (const b of allCodewords) {
+        for (let i = 7; i >= 0; i--) fullBits.push((b >>> i) & 1);
+      }
+
+      let bitIdx = 0;
+      let upward = true;
+      for (let right = size - 1; right >= 1; right -= 2) {
+        if (right === 6) right = 5;
+        for (let step = 0; step < size; step++) {
+          const r = upward ? size - 1 - step : step;
+          for (let dx = 0; dx < 2; dx++) {
+            const c = right - dx;
+            if ((grid[r][c] & 4) === 0) {
+              const bit = bitIdx < fullBits.length ? fullBits[bitIdx++] : 0;
+              const masked = bit ^ (((r + c) % 2 === 0) ? 1 : 0);
+              grid[r][c] = masked ? 2 : 1;
+            }
+          }
+        }
+        upward = !upward;
+      }
+
+      // Write format info for ECC-L (01) + Mask 0 (000) -> 15-bit BCH: 0x77c4
+      const fmt = 0x77c4;
+      const fmtBits = [];
+      for (let i = 14; i >= 0; i--) fmtBits.push((fmt >>> i) & 1);
+      const cCoords = [0, 1, 2, 3, 4, 5, 7, 8, size - 7, size - 6, size - 5, size - 4, size - 3, size - 2, size - 1];
+      const rCoords = [size - 1, size - 2, size - 3, size - 4, size - 5, size - 6, size - 7, 8, 7, 5, 4, 3, 2, 1, 0];
+      for (let i = 0; i < 15; i++) {
+        setFn(8, cCoords[i], fmtBits[i] === 1);
+        setFn(rCoords[i], 8, fmtBits[i] === 1);
+      }
+
+      const border = 2;
+      const total = size + border * 2;
+      let pathD = '';
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if ((grid[r][c] & 3) === 2) {
+            pathD += `M${c + border},${r + border}h1v1h-1z`;
+          }
+        }
+      }
+      return `<svg viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges" aria-label="${escHtml(label)}"><rect width="${total}" height="${total}" fill="#ffffff"/><path fill="#1f2e26" d="${pathD}"/></svg>`;
+    }
+
+    function sleep(ms) {
+      return new Promise((r) => setTimeout(r, ms));
+    }
+
+    function buildImprovRpcPacket(cmd, payloadBytes) {
+      const dataLen = 2 + payloadBytes.length;
+      const pkt = new Uint8Array(11 + dataLen);
+      pkt[0] = 0x49;
+      pkt[1] = 0x4d;
+      pkt[2] = 0x50;
+      pkt[3] = 0x52;
+      pkt[4] = 0x4f;
+      pkt[5] = 0x56;
+      pkt[6] = 0x01;
+      pkt[7] = 0x03;
+      pkt[8] = dataLen;
+      pkt[9] = cmd;
+      pkt[10] = payloadBytes.length;
+      for (let i = 0; i < payloadBytes.length; i++) {
+        pkt[11 + i] = payloadBytes[i];
+      }
+      let csum = 0;
+      for (let i = 0; i < 9 + dataLen; i++) {
+        csum = (csum + pkt[i]) & 0xff;
+      }
+      pkt[9 + dataLen] = csum;
+      pkt[10 + dataLen] = 0x0a;
+      return pkt;
+    }
+
+    function parseImprovStrings(buf, offset, end) {
+      const out = [];
+      let p = offset;
+      while (p < end) {
+        const len = buf[p++];
+        if (p + len > end) break;
+        out.push(new TextDecoder().decode(buf.slice(p, p + len)));
+        p += len;
+      }
+      return out;
+    }
+
+    function notifyImprovWaiters(evt) {
+      const list = state.improvResolvers.slice();
+      list.forEach((fn) => fn(evt));
+    }
+
+    function waitForImprovEvent(predicate, timeoutMs) {
+      return new Promise((resolve) => {
+        let done = false;
+        const timer = setTimeout(() => {
+          if (done) return;
+          done = true;
+          state.improvResolvers = state.improvResolvers.filter((f) => f !== handler);
+          resolve(null);
+        }, timeoutMs);
+        const handler = (evt) => {
+          if (done) return;
+          if (predicate(evt)) {
+            done = true;
+            clearTimeout(timer);
+            state.improvResolvers = state.improvResolvers.filter((f) => f !== handler);
+            resolve(evt);
+          }
+        };
+        state.improvResolvers.push(handler);
+      });
+    }
+
+    function handleImprovPacket(type, data) {
+      console.log('[IMPROV RX]', 'type=0x' + type.toString(16), Array.from(data));
+      if (type === 0x01 && data.length >= 1) {
+        state.improvState = data[0];
+        notifyImprovWaiters({ kind: 'state', state: data[0] });
+      } else if (type === 0x02 && data.length >= 1) {
+        notifyImprovWaiters({ kind: 'error', error: data[0] });
+      } else if (type === 0x04 && data.length >= 2) {
+        const cmd = data[0];
+        const totalLen = data[1];
+        const strs = parseImprovStrings(data, 2, Math.min(data.length, 2 + totalLen));
+        if (cmd === 0x03 && strs.length >= 1) {
+          state.deviceInfo = strs;
+        } else if ((cmd === 0x01 || cmd === 0x02) && strs.length >= 1) {
+          const url = strs[0].trim();
+          if (/^https?:\/\/\d+\.\d+\.\d+\.\d+/i.test(url)) {
+            const cleanUrl = url.replace(/\/+$/, '');
+            if (cleanUrl !== state.deviceIpUrl) {
+              state.deviceIpUrl = cleanUrl;
+              if (document.getElementById('bldb-mm-settings') && hasValidLanConnection()) {
+                showMainMenuScreen(true);
+              }
+            }
+          }
+        }
+        notifyImprovWaiters({ kind: 'rpc', cmd, strings: strs });
+      }
+    }
+
+    function handleUsbSerialLine(line) {
+      if (!line) return;
+      const apMatch = line.match(/\[AP_CLIENTS\]\s*(\d+)/);
+      if (apMatch) {
+        const cnt = parseInt(apMatch[1], 10) || 0;
+        if (cnt !== state.apClients) {
+          state.apClients = cnt;
+          if (document.getElementById('bldb-mm-settings') && !hasValidLanConnection()) {
+            showMainMenuScreen(false);
+          }
+        }
+      }
+      const tryMatch = line.match(/\[WIFI\]\s*(?:Trying \(\d+\/\d+\)|Background retry):\s*(.+?)\.{3}$/);
+      if (tryMatch && tryMatch[1]) {
+        const ssidName = tryMatch[1].trim();
+        if (ssidName && ssidName !== state.wifiAttemptSsid) {
+          state.wifiAttemptSsid = ssidName;
+          if (document.getElementById('bldb-mm-settings') && !hasValidLanConnection()) {
+            showMainMenuScreen(false);
+          }
+        }
+      }
+      const ipMatch = line.match(/\[WIFI\]\s*(?:Background STA c|C)onnected!\s*IP:\s*(\d+\.\d+\.\d+\.\d+)/i)
+                   || line.match(/Wi-Fi:\s*STA\s*\((\d+\.\d+\.\d+\.\d+)\)/i);
+      if (ipMatch && ipMatch[1] && ipMatch[1] !== '192.168.4.1') {
+        const newUrl = 'http://' + ipMatch[1];
+        if (state.deviceIpUrl !== newUrl) {
+          state.deviceIpUrl = newUrl;
+          state.wifiAttemptSsid = '';
+          if (document.getElementById('bldb-mm-settings')) {
+            showMainMenuScreen(true);
+          }
+        }
+      }
+    }
+
+    function consumeRxBuffer() {
+      const magic = [0x49, 0x4d, 0x50, 0x52, 0x4f, 0x56];
+      while (state.rxBytes.length > 0) {
+        let startIdx = -1;
+        for (let i = 0; i <= state.rxBytes.length - 6; i++) {
+          let match = true;
+          for (let j = 0; j < 6; j++) {
+            if (state.rxBytes[i + j] !== magic[j]) {
+              match = false;
+              break;
+            }
+          }
+          if (match) {
+            startIdx = i;
+            break;
+          }
+        }
+        if (startIdx === -1) {
+          const nlIdx = state.rxBytes.lastIndexOf(0x0a);
+          if (nlIdx >= 0) {
+            const line = new TextDecoder().decode(new Uint8Array(state.rxBytes.splice(0, nlIdx + 1))).trim();
+            if (line) {
+              console.log('[USB SERIAL]', line);
+              state.lastDebugMsg = line;
+              handleUsbSerialLine(line);
+            }
+          }
+          return;
+        }
+        if (startIdx > 0) {
+          const textChunk = new TextDecoder().decode(new Uint8Array(state.rxBytes.splice(0, startIdx))).trim();
+          if (textChunk) {
+            console.log('[USB SERIAL]', textChunk);
+            state.lastDebugMsg = textChunk;
+            textChunk.split(/\r?\n/).forEach(handleUsbSerialLine);
+          }
+        }
+        if (state.rxBytes.length < 10) return;
+        const payloadLen = state.rxBytes[8];
+        const pktLen = 10 + payloadLen;
+        if (pktLen > 270) {
+          state.rxBytes.shift();
+          continue;
+        }
+        if (state.rxBytes.length < pktLen) return;
+        const pkt = state.rxBytes.slice(0, pktLen);
+        let csum = 0;
+        for (let i = 0; i < pktLen - 1; i++) {
+          csum = (csum + pkt[i]) & 0xff;
+        }
+        if (csum === pkt[pktLen - 1]) {
+          state.rxBytes.splice(0, pktLen);
+          handleImprovPacket(pkt[7], new Uint8Array(pkt.slice(9, 9 + payloadLen)));
+        } else {
+          state.rxBytes.shift();
+        }
+      }
+    }
+
+    async function startSerialReader() {
+      if (!state.port || !state.port.readable || state.readLoopActive) return;
+      state.readLoopActive = true;
+      state.rxBytes = [];
+      try {
+        state.reader = state.port.readable.getReader();
+        while (state.readLoopActive) {
+          const { value, done } = await state.reader.read();
+          if (done) break;
+          if (value && value.length > 0) {
+            for (let i = 0; i < value.length; i++) {
+              state.rxBytes.push(value[i]);
+            }
+            consumeRxBuffer();
+          }
+        }
+      } catch (_) {
+      } finally {
+        state.readLoopActive = false;
+        if (state.reader) {
+          try { state.reader.releaseLock(); } catch (_) {}
+          state.reader = null;
+        }
+      }
+    }
+
+    async function stopSerialReader() {
+      state.readLoopActive = false;
+      if (state.reader) {
+        try { await state.reader.cancel(); } catch (_) {}
+        try { state.reader.releaseLock(); } catch (_) {}
+        state.reader = null;
+      }
+    }
+
+    async function writeSerialBytes(bytes) {
+      if (!state.port || !state.port.writable) return false;
+      for (let i = 0; i < 25 && state.port.writable.locked; i++) {
+        await sleep(40);
+      }
+      if (state.port.writable.locked) return false;
+      const writer = state.port.writable.getWriter();
+      try {
+        await writer.write(bytes);
+        return true;
+      } catch (_) {
+        return false;
+      } finally {
+        writer.releaseLock();
+      }
+    }
+
+    async function sendSerialLine(line) {
+      return writeSerialBytes(new TextEncoder().encode(line + '\n'));
+    }
+
+    async function triggerUsbSerialHardReset(port) {
+      if (!port) return;
+      await sleep(250);
+      try {
+        if (!port.readable || !port.writable) {
+          await port.open({ baudRate: 115200 });
+        }
+        // Chrome asserts DTR=true on port.open(); clear DTR=false (GPIO0 HIGH) first and let RC circuit settle
+        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await sleep(200);
+        // Pulse EN low (RTS=true -> false) while GPIO0 stays HIGH (DTR=false) to exit download mode
+        await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+        await sleep(150);
+        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await sleep(300);
+      } catch (_) {}
+      try {
+        if (port.readable || port.writable) {
+          await port.close();
+        }
+      } catch (_) {}
+    }
+
+    async function openSerialAt115200() {
+      if (!state.port) return false;
+      const targetInfo = state.port.getInfo ? state.port.getInfo() : {};
+      for (let attempt = 0; attempt < 20; attempt++) {
+        try {
+          if (attempt > 0 && navigator.serial && navigator.serial.getPorts) {
+            const ports = await navigator.serial.getPorts();
+            const match = ports.find((p) => {
+              const inf = p.getInfo ? p.getInfo() : {};
+              return inf.usbVendorId === targetInfo.usbVendorId && inf.usbProductId === targetInfo.usbProductId;
+            }) || (ports.length === 1 ? ports[0] : null);
+            if (match) state.port = match;
+          }
+          if (!state.port.readable || !state.port.writable) {
+            await state.port.open({ baudRate: 115200 });
+          }
+          try {
+            await state.port.setSignals({ dataTerminalReady: true, requestToSend: true });
+          } catch (_) {}
+          startSerialReader();
+          return true;
+        } catch (_) {
+          await sleep(300);
+        }
+      }
+      return false;
+    }
+
+    async function closeAndResetSession() {
+      await stopSerialReader();
+      if (state.port) {
+        try { await state.port.close(); } catch (_) {}
+      }
+      state.port = null;
+      state.deviceInfo = null;
+      state.improvState = 0;
+      state.deviceIpUrl = '';
+      state.wifiNetworks = [];
+      state.wifiScanning = false;
+      state.wifiScannedOnce = false;
+      state.currentScreen = '';
+      state.confirmFromMenu = false;
+      state.improvResolvers = [];
+      modalOverlay.style.display = 'none';
+      if (connectCard) connectCard.style.display = 'block';
+      modalCard.innerHTML = '';
+    }
+
+    async function detectConnectedDevice() {
+      state.deviceInfo = null;
+      state.improvState = 0;
+      state.deviceIpUrl = '';
+
+      const infoReq = buildImprovRpcPacket(0x03, []);
+      const stateReq = buildImprovRpcPacket(0x02, []);
+
+      await writeSerialBytes(infoReq);
+      await sleep(60);
+      await writeSerialBytes(stateReq);
+
+      const firstReply = await waitForImprovEvent(
+        (e) => (e.kind === 'rpc' && (e.cmd === 0x03 || e.cmd === 0x02)) || e.kind === 'state',
+        650
+      );
+
+      if (!firstReply) {
+        await writeSerialBytes(infoReq);
+        await sleep(60);
+        await writeSerialBytes(stateReq);
+        await waitForImprovEvent(
+          (e) => (e.kind === 'rpc' && (e.cmd === 0x03 || e.cmd === 0x02)) || e.kind === 'state',
+          550
+        );
+      }
+
+      if (state.deviceInfo && state.deviceInfo[0] === 'BLE Dust Bridge') {
+        if (!state.deviceIpUrl) {
+          await writeSerialBytes(stateReq);
+          await waitForImprovEvent((e) => e.kind === 'rpc' && e.cmd === 0x02, 400);
+        }
+        return true;
+      }
+      return false;
+    }
+
+    async function queryWifiNetworks() {
+      state.wifiScanning = true;
+      state.wifiNetworks = [];
+      const scanOnce = async () => {
+        const found = [];
+        const donePromise = waitForImprovEvent((e) => {
+          if (e.kind === 'rpc' && e.cmd === 0x04) {
+            if (e.strings.length === 0) return true;
+            const ssid = e.strings[0];
+            const rssi = parseInt(e.strings[1] || '-100', 10);
+            const locked = (e.strings[2] || 'YES').toUpperCase() === 'YES';
+            if (ssid && !found.some((x) => x.ssid === ssid)) {
+              found.push({ ssid, rssi, locked });
+            }
+          }
+          return false;
+        }, 15000);
+
+        await writeSerialBytes(buildImprovRpcPacket(0x04, []));
+        await donePromise;
+        return found;
+      };
+
+      let found = await scanOnce();
+      if (found.length === 0) {
+        await sleep(800);
+        found = await scanOnce();
+      }
+      found.sort((a, b) => b.rssi - a.rssi);
+      state.wifiNetworks = found;
+      state.wifiScanning = false;
+      state.wifiScannedOnce = true;
+    }
+
+    function hasValidLanConnection() {
+      return !!state.deviceIpUrl && state.deviceIpUrl !== 'http://192.168.4.1';
+    }
+
+    window.printHotspotQrSticker = function() {
+      const sheet = document.getElementById('bldb-print-sheet');
+      if (!sheet) return;
+      sheet.innerHTML = `
+        <div class="ps-title">BLE Dust Bridge · Setup</div>
+        <div class="ps-grid">
+          <div class="ps-item">
+            ${QR_WIFI_AP_SVG}
+            <div class="ps-lbl">1. Join Wi-Fi</div>
+            <div class="ps-sub">dustbridge_setup</div>
+          </div>
+          <div class="ps-item">
+            ${QR_SETUP_URL_SVG}
+            <div class="ps-lbl">2. Open Setup</div>
+            <div class="ps-sub">http://192.168.4.1</div>
+          </div>
+        </div>
+      `;
+      window.print();
+    };
+
+    function renderAddressFooterHtml() {
+      const mdnsUrl = 'http://dustbridge.local';
+      if (hasValidLanConnection()) {
+        const ipQrSvg = generateQrSvg(state.deviceIpUrl, 'Open ' + state.deviceIpUrl);
+        return `
+          <div style="margin-top:14px;padding:12px;background:var(--subcard);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;line-height:1.7;">
+            <div><a href="${mdnsUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;color:var(--accent);font-weight:600;font-family:monospace;text-decoration:underline;">${mdnsUrl}${EXT_LINK_SVG}</a></div>
+            <div><a href="${state.deviceIpUrl}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;color:var(--accent);font-weight:600;font-family:monospace;text-decoration:underline;">${state.deviceIpUrl}${EXT_LINK_SVG}</a></div>
+            <div class="qr-single" style="padding-bottom:8px;">
+              ${ipQrSvg}
+            </div>
+          </div>
+        `;
+      }
+
+      const phoneJoined = (state.apClients || 0) > 0;
+      const qrBoxHtml = phoneJoined
+        ? `
+          <div class="qr-single">
+            <button type="button" class="qr-print-btn" title="Print Setup QR Sticker" aria-label="Print Setup QR Sticker" onclick="printHotspotQrSticker()">${PRINT_SVG}</button>
+            ${QR_SETUP_URL_SVG}
+            <div class="qr-lbl" style="font-size:0.78rem;">Step 2: Open Setup Page<br><span style="font-family:monospace;font-weight:600;">http://192.168.4.1</span></div>
+          </div>
+        `
+        : `
+          <div class="qr-single">
+            <button type="button" class="qr-print-btn" title="Print Setup QR Sticker" aria-label="Print Setup QR Sticker" onclick="printHotspotQrSticker()">${PRINT_SVG}</button>
+            ${QR_WIFI_AP_SVG}
+            <div class="qr-lbl" style="font-size:0.78rem;">Step 1: Scan to Join Wi-Fi<br><span style="font-family:monospace;font-weight:600;">dustbridge_setup</span></div>
+          </div>
+        `;
+
+      const retryNoteHtml = state.wifiAttemptSsid
+        ? `<div style="margin-top:8px;font-size:0.75rem;color:var(--danger);font-weight:600;">Unable to join <span style="font-family:monospace;">${escHtml(state.wifiAttemptSsid)}</span> yet — check Wi-Fi password or 2.4 GHz band.</div>`
+        : '';
+
+      return `
+        <div style="margin-top:14px;padding:12px;background:var(--subcard);border:1px solid var(--border);border-radius:10px;font-size:0.8rem;color:var(--sub);line-height:1.45;text-align:center;">
+          <div style="color:var(--text);font-weight:600;">Connect to <span style="font-family:monospace;color:var(--accent);">dustbridge_setup</span> hotspot and go to <a href="http://192.168.4.1" target="_blank" rel="noopener" style="color:var(--accent);font-family:monospace;text-decoration:underline;">192.168.4.1</a> to configure.</div>
+          ${qrBoxHtml}
+          ${retryNoteHtml}
+        </div>
+      `;
+    }
+
+    function showConnectingScreen() {
+      modalOverlay.style.display = 'flex';
+      if (connectCard) connectCard.style.display = 'none';
+      modalCard.innerHTML = `
+        <div style="text-align:center;padding:14px 4px;">
+          <div class="spinner-lg"></div>
+          <div style="font-size:1.05rem;font-weight:700;color:var(--accent);">Connecting...</div>
+        </div>
+      `;
+    }
+
+    function showConfirmEraseScreen(fromMenu = false) {
+      state.confirmFromMenu = fromMenu;
+      modalOverlay.style.display = 'flex';
+      if (connectCard) connectCard.style.display = 'none';
+      modalCard.innerHTML = `
+        <div class="modal-head">
+          <div class="modal-title">Confirm erase and install BLE-Dust Extractor Firmware</div>
+          <button id="bldb-close-btn" class="close-x" type="button">&times;</button>
+        </div>
+        
+        <button id="bldb-confirm-go" class="btn-primary" type="button" style="width:100%;">Confirm</button>
+        <div class="link-row">
+          <button id="bldb-confirm-cancel" class="skip-link" type="button" style="margin-top:0;">Cancel</button>
+        </div>
+      `;
+
+      const onCancel = () => {
+        if (state.confirmFromMenu) {
+          showMainMenuScreen(false);
+        } else {
+          closeAndResetSession();
+        }
+      };
+      modalCard.querySelector('#bldb-close-btn').onclick = onCancel;
+      modalCard.querySelector('#bldb-confirm-cancel').onclick = onCancel;
+      modalCard.querySelector('#bldb-confirm-go').onclick = () => runFirmwareInstall();
+    }
+
+    function updateFlashingProgress(pct) {
+      const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+      const radius = 50;
+      const circumference = 2 * Math.PI * radius;
+      const offset = circumference - (clamped / 100) * circumference;
+
+      const circle = modalCard.querySelector('#bldb-ring-fg');
+      const pctEl = modalCard.querySelector('#bldb-ring-pct');
+      if (circle && pctEl) {
+        circle.style.strokeDashoffset = String(offset);
+        pctEl.textContent = clamped + '%';
+        return;
+      }
+
+      modalOverlay.style.display = 'flex';
+      if (connectCard) connectCard.style.display = 'none';
+      modalCard.innerHTML = `
+        <div style="text-align:center;padding:12px 4px;">
+          <div class="ring-wrap">
+            <svg width="124" height="124" viewBox="0 0 124 124" style="transform:rotate(-90deg);">
+              <circle cx="62" cy="62" r="${radius}" fill="none" stroke="var(--border)" stroke-width="9"></circle>
+              <circle id="bldb-ring-fg" cx="62" cy="62" r="${radius}" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" style="transition:stroke-dashoffset 0.12s linear;"></circle>
+            </svg>
+            <div id="bldb-ring-pct" class="ring-pct">${clamped}%</div>
+          </div>
+          <div style="font-size:1.05rem;font-weight:700;color:var(--accent);">Installing...</div>
+        </div>
+      `;
+    }
+
+    function showErrorScreen(message) {
+      modalOverlay.style.display = 'flex';
+      if (connectCard) connectCard.style.display = 'none';
+      modalCard.innerHTML = `
+        <div class="modal-head">
+          <div class="modal-title" style="color:var(--danger);">Installation Error</div>
+          <button id="bldb-err-close-x" class="close-x" type="button">&times;</button>
+        </div>
+        <div style="background:var(--danger-soft);border:1px solid #dfb0b0;border-radius:10px;padding:12px;font-size:0.84rem;color:var(--danger);line-height:1.45;margin-bottom:16px;">
+          ${escHtml(message || 'An unexpected error occurred while flashing the device.')}
+        </div>
+        <div class="btn-row">
+          <button id="bldb-err-close" class="btn-secondary" type="button">Close</button>
+          <button id="bldb-err-retry" class="btn-primary" type="button">Retry</button>
+        </div>
+      `;
+      modalCard.querySelector('#bldb-err-close-x').onclick = closeAndResetSession;
+      modalCard.querySelector('#bldb-err-close').onclick = closeAndResetSession;
+      modalCard.querySelector('#bldb-err-retry').onclick = () => runFirmwareInstall();
+    }
+
+    async function runFirmwareInstall() {
+      let prePct = 1;
+      updateFlashingProgress(prePct);
+      const setInstallLabel = (txt) => {
+        const textDivs = Array.from(modalCard.querySelectorAll('div')).filter((d) => d.children.length === 0 && /(connecting|erasing|installing|rebooting)/i.test(d.textContent));
+        if (textDivs.length) textDivs[textDivs.length - 1].textContent = txt;
+      };
+      setInstallLabel('Connecting to bootloader...');
+      let prepTimer = setInterval(() => {
+        if (prePct < 12) {
+          prePct += 1;
+          updateFlashingProgress(prePct);
+        }
+      }, 550);
+
+      let transport = null;
+      try {
+        await stopSerialReader();
+        if (state.port && (state.port.readable || state.port.writable)) {
+          try { await state.port.close(); } catch (_) {}
+          await sleep(150);
+        }
+
+        const manifestRes = await fetch('manifest.json', { cache: 'no-store' });
+        if (!manifestRes.ok) throw new Error('Unable to load firmware manifest.');
+        const manifest = await manifestRes.json();
+        const part = manifest && manifest.builds && manifest.builds[0] && manifest.builds[0].parts && manifest.builds[0].parts[0];
+        if (!part || !part.path) throw new Error('Invalid firmware manifest.');
+
+        const binRes = await fetch(part.path, { cache: 'no-store' });
+        if (!binRes.ok) throw new Error('Unable to download firmware binary (' + part.path + ').');
+        const firmwareBytes = new Uint8Array(await binRes.arrayBuffer());
+        let firmwareBstr = '';
+        const chunkSize = 0x4000;
+        for (let i = 0; i < firmwareBytes.length; i += chunkSize) {
+          firmwareBstr += String.fromCharCode.apply(null, firmwareBytes.subarray(i, i + chunkSize));
+        }
+
+        transport = new Transport(state.port, false);
+        const terminal = { clean() {}, writeLine() {}, write() {} };
+        const loader = new ESPLoader({
+          transport,
+          baudrate: 921600,
+          romBaudrate: 115200,
+          terminal
+        });
+
+        await loader.main();
+        setInstallLabel('Erasing flash...');
+        let writingStarted = false;
+        await loader.writeFlash({
+          fileArray: [{ data: firmwareBstr, address: Number(part.offset || 0) }],
+          flashMode: 'keep',
+          flashFreq: 'keep',
+          flashSize: 'keep',
+          eraseAll: true,
+          compress: true,
+          reportProgress: (_idx, written, total) => {
+            if (!writingStarted) {
+              writingStarted = true;
+              if (prepTimer) { clearInterval(prepTimer); prepTimer = null; }
+              setInstallLabel('Installing...');
+            }
+            if (total > 0) {
+              const base = prePct;
+              updateFlashingProgress(base + (written / total) * (100 - base));
+            }
+          }
+        });
+        if (prepTimer) { clearInterval(prepTimer); prepTimer = null; }
+
+        updateFlashingProgress(100);
+        const statusLabel = modalCard.querySelector('.progress-label') || modalCard.querySelector('#bldb-flash-status');
+        if (statusLabel) {
+          statusLabel.textContent = 'Rebooting...';
+        } else {
+          const textDivs = Array.from(modalCard.querySelectorAll('div')).filter((d) => d.children.length === 0 && /installing/i.test(d.textContent));
+          if (textDivs.length) textDivs[textDivs.length - 1].textContent = 'Rebooting...';
+        }
+
+        try { await loader.after('hard_reset'); } catch (_) {}
+        try { await transport.disconnect(); } catch (_) {}
+        transport = null;
+
+        await triggerUsbSerialHardReset(state.port);
+        await sleep(1800);
+
+        state.deviceIpUrl = '';
+        let booted = false;
+        const startBootWait = Date.now();
+        while (!booted) {
+          await stopSerialReader();
+          if (state.port && (state.port.readable || state.port.writable)) {
+            try { await state.port.close(); } catch (_) {}
+          }
+          if (await openSerialAt115200()) {
+            if (await detectConnectedDevice()) {
+              booted = true;
+              break;
+            }
+          }
+          if (Date.now() - startBootWait > 8000) {
+            const divs = Array.from(modalCard.querySelectorAll('div')).filter((d) => d.children.length === 0 && /rebooting/i.test(d.textContent));
+            if (divs.length && !divs[0].dataset.retried) {
+              divs[0].dataset.retried = '1';
+              divs[0].textContent = 'Rebooting... (or press Reset on device)';
+              await stopSerialReader();
+              await triggerUsbSerialHardReset(state.port);
+            }
+          }
+          await sleep(500);
+        }
+        showConfigureWifiScreen(false);
+      } catch (err) {
+        if (prepTimer) { clearInterval(prepTimer); prepTimer = null; }
+        if (transport) {
+          try { await transport.disconnect(); } catch (_) {}
+        }
+        showErrorScreen((err && err.message) ? err.message : String(err));
+      }
+    }
+
+    async function showConfigureWifiScreen(fromMenu = false) {
+      state.currentScreen = 'WIFI';
+      state.wifiScannedOnce = false;
+      sendSerialLine('BLDB_LED_WIFI 1');
+      modalOverlay.style.display = 'flex';
+      if (connectCard) connectCard.style.display = 'none';
+
+      const renderWifiCard = () => {
+        if (state.currentScreen !== 'WIFI') return;
+        const netHtml = state.wifiScanning
+          ? `<div style="padding:10px;text-align:center;font-size:0.82rem;color:var(--sub);margin-bottom:10px;border:1px dashed var(--border);border-radius:8px;background:var(--input);">Scanning nearby Wi-Fi networks...</div>`
+          : (state.wifiNetworks.length > 0
+              ? `<div class="net-list">${state.wifiNetworks.map((n) => `
+                  <div class="net-item" data-ssid="${escHtml(n.ssid)}">
+                    <span style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(n.ssid)}</span>
+                    <span style="font-size:0.76rem;color:var(--sub);font-family:monospace;flex-shrink:0;">${n.locked ? LOCK_SVG : ''}${n.rssi} dBm</span>
+                  </div>`).join('')}</div>`
+              : (state.wifiScannedOnce
+                  ? `<div style="padding:9px 10px;text-align:center;font-size:0.8rem;color:var(--sub);margin-bottom:10px;border:1px dashed var(--border);border-radius:8px;background:var(--input);">No networks found. Click Scan to retry.${state.lastDebugMsg ? '<div style="margin-top:6px;font-family:monospace;font-size:0.72rem;color:var(--accent);word-break:break-all;">' + escHtml(state.lastDebugMsg) + '</div>' : ''}</div>`
+                  : ''));
+
+        modalCard.innerHTML = `
+          <div class="modal-head">
+            <div class="modal-title">Configure Wi-Fi</div>
+            <button id="bldb-wifi-close" class="close-x" type="button">&times;</button>
+          </div>
+          <div style="font-size:0.82rem;color:var(--sub);margin-bottom:12px;">
+            Select or enter your Wi-Fi network to connect the bridge.
+          </div>
+          <div class="subbox">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;">
+              <span style="font-size:0.78rem;font-weight:700;color:var(--accent);">Networks</span>
+              <button id="bldb-wifi-scan" class="btn-secondary" type="button" style="padding:5px 10px;font-size:0.78rem;" ${state.wifiScanning ? 'disabled' : ''}>${state.wifiScanning ? 'Scanning...' : 'Scan'}</button>
+            </div>
+            ${netHtml}
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <input id="bldb-wifi-ssid" class="inp" type="text" placeholder="Wi-Fi Network (SSID)" autocomplete="off" />
+              <input id="bldb-wifi-pass" class="inp" type="password" placeholder="Wi-Fi Password" autocomplete="off" />
+            </div>
+            <div id="bldb-wifi-err" class="err-msg"></div>
+          </div>
+          <button id="bldb-wifi-continue" class="btn-primary" type="button" style="width:100%;" disabled>Continue</button>
+          <div class="link-row">
+            ${fromMenu ? '<button id="bldb-wifi-back" class="skip-link" type="button" style="margin-top:0;">Back</button>' : ''}
+            <button id="bldb-wifi-skip" class="skip-link" type="button" style="margin-top:0;">Skip</button>
+          </div>
+        `;
+
+        modalCard.querySelector('#bldb-wifi-close').onclick = closeAndResetSession;
+        modalCard.querySelector('#bldb-wifi-scan').onclick = () => runWifiScan();
+        modalCard.querySelectorAll('.net-item').forEach((row) => {
+          row.onclick = () => {
+            modalCard.querySelectorAll('.net-item').forEach((r) => r.classList.remove('active'));
+            row.classList.add('active');
+            const ssidInp = modalCard.querySelector('#bldb-wifi-ssid');
+            const passInp = modalCard.querySelector('#bldb-wifi-pass');
+            ssidInp.value = row.dataset.ssid || '';
+            passInp.focus();
+          };
+        });
+
+        const advanceAfterWifi = () => {
+          state.currentScreen = '';
+          sendSerialLine('BLDB_LED_WIFI 0');
+          if (fromMenu) {
+            showMainMenuScreen(false);
+          } else {
+            showConfigurePasswordScreen(false);
+          }
+        };
+
+        const _wSsid = modalCard.querySelector('#bldb-wifi-ssid');
+        const _wPass = modalCard.querySelector('#bldb-wifi-pass');
+        const _wCont = modalCard.querySelector('#bldb-wifi-continue');
+        const _syncWifiBtn = () => {
+          const s = (_wSsid ? _wSsid.value.trim() : '');
+          const matchedNet = (state.wifiNetworks || []).find((x) => x.ssid === s);
+          const needsPass = matchedNet ? !!matchedNet.locked : false;
+          if (_wCont) _wCont.disabled = !s || (needsPass && !(_wPass && _wPass.value));
+        };
+        if (_wSsid) _wSsid.addEventListener('input', _syncWifiBtn);
+        if (_wPass) _wPass.addEventListener('input', _syncWifiBtn);
+        modalCard.querySelectorAll('.net-item, [data-ssid]').forEach((el) => el.addEventListener('click', () => setTimeout(_syncWifiBtn, 0)));
+        if (modalCard.querySelector('#bldb-wifi-back')) {
+          modalCard.querySelector('#bldb-wifi-back').onclick = () => {
+            state.currentScreen = '';
+            sendSerialLine('BLDB_LED_WIFI 0');
+            showMainMenuScreen(false);
+          };
+        }
+        _syncWifiBtn();
+
+        modalCard.querySelector('#bldb-wifi-skip').onclick = advanceAfterWifi;
+        modalCard.querySelector('#bldb-wifi-continue').onclick = async () => {
+          const ssidInp = modalCard.querySelector('#bldb-wifi-ssid');
+          const passInp = modalCard.querySelector('#bldb-wifi-pass');
+          const errEl = modalCard.querySelector('#bldb-wifi-err');
+          const contBtn = modalCard.querySelector('#bldb-wifi-continue');
+          const skipBtn = modalCard.querySelector('#bldb-wifi-skip');
+          const scanBtn = modalCard.querySelector('#bldb-wifi-scan');
+
+          const ssid = ssidInp.value.trim();
+          const pass = passInp.value;
+          if (!ssid) {
+            errEl.textContent = 'Enter a Wi-Fi network name (SSID) or click Skip.';
+            errEl.style.display = 'block';
+            return;
+          }
+
+          errEl.style.display = 'none';
+          contBtn.disabled = true;
+          skipBtn.disabled = true;
+          if (scanBtn) scanBtn.disabled = true;
+          contBtn.textContent = 'Connecting...';
+
+          const ssidBytes = new TextEncoder().encode(ssid);
+          const passBytes = new TextEncoder().encode(pass);
+          const payload = new Uint8Array(2 + ssidBytes.length + passBytes.length);
+          payload[0] = ssidBytes.length;
+          payload.set(ssidBytes, 1);
+          payload[1 + ssidBytes.length] = passBytes.length;
+          payload.set(passBytes, 2 + ssidBytes.length);
+
+          const resultPromise = waitForImprovEvent(
+            (e) =>
+              (e.kind === 'state' && e.state === 0x04) ||
+              (e.kind === 'rpc' && e.cmd === 0x01 && e.strings.length > 0) ||
+              e.kind === 'error',
+            28000
+          );
+
+          await writeSerialBytes(buildImprovRpcPacket(0x01, payload));
+          const res = await resultPromise;
+
+          if (res && res.kind !== 'error') {
+            if (!state.deviceIpUrl) {
+              await writeSerialBytes(buildImprovRpcPacket(0x02, []));
+              await waitForImprovEvent((e) => e.kind === 'rpc' && e.cmd === 0x02, 500);
+            }
+            advanceAfterWifi();
+          } else {
+            contBtn.disabled = false;
+            skipBtn.disabled = false;
+            if (scanBtn) scanBtn.disabled = false;
+            contBtn.textContent = 'Continue';
+            errEl.textContent = 'Could not connect to "' + ssid + '". Check password or click Skip.';
+            errEl.style.display = 'block';
+          }
+        };
+      };
+
+      const runWifiScan = async () => {
+        if (state.wifiScanning) return;
+        const curSsid = modalCard.querySelector('#bldb-wifi-ssid') ? modalCard.querySelector('#bldb-wifi-ssid').value : '';
+        const curPass = modalCard.querySelector('#bldb-wifi-pass') ? modalCard.querySelector('#bldb-wifi-pass').value : '';
+        state.wifiScanning = true;
+        renderWifiCard();
+        if (modalCard.querySelector('#bldb-wifi-ssid')) modalCard.querySelector('#bldb-wifi-ssid').value = curSsid;
+        if (modalCard.querySelector('#bldb-wifi-pass')) modalCard.querySelector('#bldb-wifi-pass').value = curPass;
+
+        await queryWifiNetworks();
+
+        const _cBtn = modalCard.querySelector('#bldb-wifi-continue');
+        if (state.currentScreen === 'WIFI' && (!_cBtn || _cBtn.textContent !== 'Connecting...')) {
+          renderWifiCard();
+          if (modalCard.querySelector('#bldb-wifi-ssid')) modalCard.querySelector('#bldb-wifi-ssid').value = curSsid;
+          if (modalCard.querySelector('#bldb-wifi-pass')) modalCard.querySelector('#bldb-wifi-pass').value = curPass;
+        }
+      };
+
+      renderWifiCard();
+      await runWifiScan();
+    }
+
+    function showConfigurePasswordScreen(fromMenu = false) {
+      modalOverlay.style.display = 'flex';
+      if (connectCard) connectCard.style.display = 'none';
+      modalCard.innerHTML = `
+        <div class="modal-head" style="margin-bottom:14px;">
+          <div class="modal-title">Configure Password</div>
+          <button id="bldb-pw-close" class="close-x" type="button">&times;</button>
+        </div>
+        <div class="subbox">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
+            <div>
+              <div style="font-weight:700;font-size:0.9rem;color:var(--accent);">Password Protection</div>
+              <div id="bldb-pw-state-lbl" style="font-size:0.76rem;font-weight:600;color:var(--sub);">Disabled (No Password)</div>
+            </div>
+            <label style="position:relative;display:inline-flex;align-items:center;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+              <input id="bldb-pw-en" type="checkbox" checked style="opacity:0;width:0;height:0;position:absolute;" />
+              <span id="bldb-pw-track" style="position:absolute;inset:0;background:#cfc8b4;border-radius:999px;transition:background 0.18s;"></span>
+              <span id="bldb-pw-thumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#ffffff;border-radius:50%;transition:left 0.18s;box-shadow:0 1px 3px rgba(0,0,0,0.25);"></span>
+            </label>
+          </div>
+          <div id="bldb-pw-fields" style="display:flex;flex-direction:column;gap:8px;opacity:0.45;transition:opacity 0.18s;">
+            <input id="bldb-pw-user" class="inp" type="text" value="admin" placeholder="Username" autocomplete="username" disabled />
+            <input id="bldb-pw-pass" class="inp" type="password" placeholder="Password" autocomplete="new-password" disabled />
+          </div>
+          <div id="bldb-pw-err" class="err-msg"></div>
+        </div>
+        <button id="bldb-pw-continue" class="btn-primary" type="button" style="width:100%;" disabled>Continue</button>
+        <div class="link-row">
+          <button id="bldb-pw-back" class="skip-link" type="button" style="margin-top:0;">Back</button>
+          <button id="bldb-pw-skip" class="skip-link" type="button" style="margin-top:0;">Skip</button>
+        </div>
+      `;
+
+      const enCb = modalCard.querySelector('#bldb-pw-en');
+      const stateLbl = modalCard.querySelector('#bldb-pw-state-lbl');
+      const track = modalCard.querySelector('#bldb-pw-track');
+      const thumb = modalCard.querySelector('#bldb-pw-thumb');
+      const fields = modalCard.querySelector('#bldb-pw-fields');
+      const userInp = modalCard.querySelector('#bldb-pw-user');
+      const passInp = modalCard.querySelector('#bldb-pw-pass');
+      const errEl = modalCard.querySelector('#bldb-pw-err');
+
+      const syncToggle = () => {
+        const on = !!enCb.checked;
+        stateLbl.textContent = on ? 'Enabled' : 'Disabled (No Password)';
+        stateLbl.style.color = on ? 'var(--accent)' : 'var(--sub)';
+        track.style.background = on ? 'var(--accent)' : '#cfc8b4';
+        thumb.style.left = on ? '23px' : '3px';
+        userInp.disabled = !on;
+        passInp.disabled = !on;
+        fields.style.opacity = on ? '1' : '0.45';
+        if (!on) errEl.style.display = 'none';
+      };
+      enCb.checked = true;
+      enCb.addEventListener('change', syncToggle);
+      syncToggle();
+      if (enCb.checked && passInp) passInp.focus();
+
+      const advanceAfterPassword = () => {
+        if (fromMenu) {
+          showMainMenuScreen(false);
+        } else {
+          showMainMenuScreen(true);
+        }
+      };
+
+      modalCard.querySelector('#bldb-pw-close').onclick = closeAndResetSession;
+      const _pEn = modalCard.querySelector('#bldb-pw-en');
+      const _pUser = modalCard.querySelector('#bldb-pw-user');
+      const _pPass = modalCard.querySelector('#bldb-pw-pass');
+      const _pCont = modalCard.querySelector('#bldb-pw-continue');
+      const _syncPwBtn = () => {
+        if (!_pCont) return;
+        if (_pEn && !_pEn.checked) {
+          _pCont.disabled = false;
+        } else {
+          _pCont.disabled = !(_pUser && _pUser.value.trim() && _pPass && _pPass.value);
+        }
+      };
+      if (_pEn) _pEn.addEventListener('change', _syncPwBtn);
+      if (_pUser) _pUser.addEventListener('input', _syncPwBtn);
+      if (_pPass) _pPass.addEventListener('input', _syncPwBtn);
+      if (modalCard.querySelector('#bldb-pw-back')) {
+        modalCard.querySelector('#bldb-pw-back').onclick = () => {
+          if (fromMenu) showMainMenuScreen(false);
+          else showConfigureWifiScreen(false);
+        };
+      }
+      _syncPwBtn();
+
+      modalCard.querySelector('#bldb-pw-skip').onclick = async () => {
+        if (!fromMenu) {
+          const skipBtn = modalCard.querySelector('#bldb-pw-skip');
+          const contBtn = modalCard.querySelector('#bldb-pw-continue');
+          if (skipBtn) skipBtn.disabled = true;
+          if (contBtn) contBtn.disabled = true;
+          state.lastDebugMsg = '';
+          await sendSerialLine('BLDB_SET_AUTH {"en":false}');
+          for (let i = 0; i < 15; i++) {
+            if ((state.lastDebugMsg || '').includes('[SERIAL_AUTH_OK]')) break;
+            await sleep(100);
+          }
+        }
+        advanceAfterPassword();
+      };
+      modalCard.querySelector('#bldb-pw-continue').onclick = async () => {
+        const contBtn = modalCard.querySelector('#bldb-pw-continue');
+        const skipBtn = modalCard.querySelector('#bldb-pw-skip');
+        let cmdStr = 'BLDB_SET_AUTH {"en":false}';
+        if (enCb.checked) {
+          const u = userInp.value.trim();
+          const p = passInp.value;
+          if (!u || !p) {
+            errEl.textContent = 'Enter a username and password, or leave Password Protection disabled.';
+            errEl.style.display = 'block';
+            return;
+          }
+          cmdStr = 'BLDB_SET_AUTH ' + JSON.stringify({ en: true, user: u, pass: p });
+        }
+
+        errEl.style.display = 'none';
+        contBtn.disabled = true;
+        skipBtn.disabled = true;
+        contBtn.textContent = 'Saving...';
+
+        const sendAndConfirm = async () => {
+          state.lastDebugMsg = '';
+          console.log('[SERIAL TX]', cmdStr.replace(/"pass":"[^"]*"/, '"pass":"***"'));
+          const ok = await sendSerialLine(cmdStr);
+          if (!ok) return false;
+          for (let i = 0; i < 20; i++) {
+            if ((state.lastDebugMsg || '').includes('[SERIAL_AUTH_OK]')) return true;
+            if ((state.lastDebugMsg || '').includes('[SERIAL_AUTH_ERR]')) return false;
+            await sleep(100);
+          }
+          return false;
+        };
+
+        let saved = await sendAndConfirm();
+        if (!saved) {
+          await sleep(250);
+          saved = await sendAndConfirm();
+        }
+
+        if (saved) {
+          advanceAfterPassword();
+        } else {
+          contBtn.disabled = false;
+          skipBtn.disabled = false;
+          contBtn.textContent = 'Continue';
+          errEl.textContent = 'Could not save password over USB serial. Make sure the device is connected and try again.';
+          errEl.style.display = 'block';
+        }
+      };
+    }
+
+    function showMainMenuScreen(showSetupBanner = false) {
+      modalOverlay.style.display = 'flex';
+      if (connectCard) connectCard.style.display = 'none';
+      const headerHtml = `
+          <div style="margin-bottom:12px;">
+            <div class="modal-title">BLE Dust Bridge</div>
+          </div>`;
+
+      modalCard.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:-26px;">
+          <button id="bldb-mm-close" class="close-x" type="button" style="position:relative;z-index:2;">&times;</button>
+        </div>
+        ${headerHtml}
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button id="bldb-mm-settings" class="menu-btn" type="button" ${hasValidLanConnection() ? '' : 'disabled'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span>Open Settings</span>
+          </button>
+          <button id="bldb-mm-wifi" class="menu-btn" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+            <span>Configure Wi-Fi</span>
+          </button>
+          <button id="bldb-mm-pw" class="menu-btn" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Configure Password</span>
+          </button>
+          <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
+          <button id="bldb-mm-erase" class="menu-btn danger" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>Erase and Install Firmware</span>
+          </button>
+        </div>
+        ${renderAddressFooterHtml()}
+      `;
+
+      if (!hasValidLanConnection() && state.port) {
+        const pollTimer = setInterval(async () => {
+          if (!document.getElementById('bldb-mm-settings') || hasValidLanConnection() || !state.port) {
+            clearInterval(pollTimer);
+            return;
+          }
+          try {
+            await writeSerialBytes(buildImprovRpcPacket(0x02, []));
+          } catch (_) {}
+        }, 3000);
+      }
+
+      modalCard.querySelector('#bldb-mm-close').onclick = closeAndResetSession;
+      modalCard.querySelector('#bldb-mm-settings').onclick = () => {
+        const targetUrl = state.deviceIpUrl || 'http://dustbridge.local';
+        window.open(targetUrl, '_blank', 'noopener');
+      };
+      modalCard.querySelector('#bldb-mm-wifi').onclick = () => showConfigureWifiScreen(true);
+      modalCard.querySelector('#bldb-mm-pw').onclick = () => showConfigurePasswordScreen(true);
+      modalCard.querySelector('#bldb-mm-erase').onclick = () => showConfirmEraseScreen(true);
+    }
+
+    connectBtn.addEventListener('click', async () => {
+      try {
+        const port = await navigator.serial.requestPort();
+        await closeAndResetSession();
+        state.port = port;
+        showConnectingScreen();
+
+        const opened = await openSerialAt115200();
+        if (!opened) {
+          throw new Error('Could not open the selected USB serial port. Close any other serial monitor and try again.');
+        }
+
+        const isFlashed = await detectConnectedDevice();
+        if (isFlashed) {
+          showMainMenuScreen(false);
+        } else {
+          showConfirmEraseScreen(false);
+        }
+      } catch (err) {
+        if (err && err.name === 'NotFoundError') {
+          return;
+        }
+        showErrorScreen((err && err.message) ? err.message : String(err));
+      }
+    });
+  </script>
+</body>
+</html>

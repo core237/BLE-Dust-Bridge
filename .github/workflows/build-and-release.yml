@@ -1,0 +1,74 @@
+name: Build Firmware & Update Installer
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build ESP32-S3 Firmware
+        run: pio run
+
+      - name: Merge Factory Binary for Web Installer
+        run: |
+          ESPTOOL_PY=$(find ~/.platformio/packages/tool-esptoolpy -name "esptool.py" | head -n 1)
+          mkdir -p installer
+          FIRMWARE_BIN=$(find .pio/build -name "firmware.bin" | grep -i "esp32s3" | head -n 1)
+          if [ -z "$FIRMWARE_BIN" ]; then FIRMWARE_BIN=$(find .pio/build -name "firmware.bin" | head -n 1); fi
+          cp "$FIRMWARE_BIN" firmware.bin
+          
+          BOOTLOADER_BIN=$(dirname "$FIRMWARE_BIN")/bootloader.bin
+          PARTITIONS_BIN=$(dirname "$FIRMWARE_BIN")/partitions.bin
+          
+          python "$ESPTOOL_PY" --chip esp32s3 merge_bin -o installer/bldb-factory.bin \
+            --flash_mode dio --flash_freq 80m --flash_size 8MB \
+            0x0 "$BOOTLOADER_BIN" \
+            0x8000 "$PARTITIONS_BIN" \
+            0x10000 firmware.bin
+
+      - name: Update Latest GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Firmware
+          prerelease: false
+          files: |
+            firmware.bin
+            installer/bldb-factory.bin
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Web Installer Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: installer
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
