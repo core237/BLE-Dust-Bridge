@@ -11,6 +11,10 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -26,43 +30,44 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-
+
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
-      - name: Build ESP32-S3 Firmware
+      - name: Build ESP32-S3 Firmware & Factory Image
         run: pio run
 
-      - name: Merge Factory Binary for Web Installer
+      - name: Prepare Release Binaries & Version Tag
+        id: meta
         run: |
-          ESPTOOL_PY=$(find ~/.platformio/packages/tool-esptoolpy -name "esptool.py" | head -n 1)
-          mkdir -p installer
-          FIRMWARE_BIN=$(find .pio/build -name "firmware.bin" | grep -i "esp32s3" | head -n 1)
-          if [ -z "$FIRMWARE_BIN" ]; then FIRMWARE_BIN=$(find .pio/build -name "firmware.bin" | head -n 1); fi
-          cp "$FIRMWARE_BIN" firmware.bin
-          
-          BOOTLOADER_BIN=$(dirname "$FIRMWARE_BIN")/bootloader.bin
-          PARTITIONS_BIN=$(dirname "$FIRMWARE_BIN")/partitions.bin
-          
-          python "$ESPTOOL_PY" --chip esp32s3 merge_bin -o installer/bldb-factory.bin \
-            --flash_mode dio --flash_freq 80m --flash_size 8MB \
-            0x0 "$BOOTLOADER_BIN" \
-            0x8000 "$PARTITIONS_BIN" \
-            0x10000 firmware.bin
+          cp .pio/build/m5stack-atoms3/firmware.bin firmware.bin
+          VER=$(grep -oE 'doc\["fw_version"\]\s*=\s*"[^"]+"' src/web_server.cpp | grep -oE '"[^"]+"' | tail -n 1 | tr -d '"')
+          if [ -z "$VER" ]; then VER="1.0.0"; fi
+          echo "tag=v${VER}" >> "$GITHUB_OUTPUT"
+          echo "Detected firmware version: v${VER}"
 
-      - name: Update Latest GitHub Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Latest Firmware
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: BLE Dust Bridge ${{ steps.meta.outputs.tag }}
           prerelease: false
+          generate_release_notes: true
           files: |
             firmware.bin
             installer/bldb-factory.bin
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload Web Installer Artifact
         uses: actions/upload-pages-artifact@v3
