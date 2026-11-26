@@ -6,15 +6,22 @@ A Bluetooth bridge for controlling Festool dust extractors with an M5Stack AtomS
 
 ## Overview & Features
 
-**BLE-Dust-Bridge** turns a compact M5Stack AtomS3 Lite into a wireless control and automation hub for your workshop—connecting wireless switches, Bluetooth batteries, and corded power tools (such as a Shaper Origin) to your Bluetooth-enabled Festool dust extractor without hardware modifications:
+**BLE-Dust-Bridge** turns a compact M5Stack AtomS3 Lite into a wireless control and automation hub for your workshop—pairing directly with your Festool dust extractor over standard Bluetooth Low Energy (BLE) in a **100% non-invasive, non-hacky way** with zero hardware modifications, wiring taps, or extractor firmware alterations:
 
+* **100% Non-Invasive Native BLE Pairing:** Connects directly to the extractor using its built-in Bluetooth pairing button and standard BLE protocol—no opening the vacuum, splicing wires, or modifying factory hardware.
 * **Automatic Tool On/Off (Shelly Gen4 Plug):** Automatically starts and stops your dust extractor when a corded tool powers on or off through a **Shelly Gen4** smart plug (`shelly_dust_beacon.js`), with a configurable wattage cutoff threshold and post-cut evacuation delay.
 * **Unlimited Passively Monitored Buttons:** Monitor an unlimited number of passive BLE broadcast switches simultaneously without exhausting Bluetooth connection slots—place dedicated switches at every tool station across your shop.
 * **Per-Button Preset Suction Speeds:** Assign a custom preset extractor suction speed to each individual button so every tool station automatically runs at its ideal airflow level.
 * **Remote Suction Speed Adjustment:** Double-tap (`2x`) or triple-tap (`3x`) the primary wireless switch while the extractor is running to step suction speed up or down remotely without walking back to the vacuum.
-* **Momentary Press-and-Hold Mode:** Configure switches for momentary operation so the extractor runs only while the button is held down and stops immediately upon release.
+* **Momentary Press-and-Hold Mode (Primary Switch Only):** When enabled on the switch toggled as **Primary**, the extractor runs only while that primary button is held down and stops immediately upon release.
 * **Built-In Web Dashboard & OTA Updates:** Pair devices, assign per-button speeds and switch modes, view live telemetry, and install firmware updates over Wi-Fi via the hosted web UI (`http://dustbridge.local`).
 * **Home Assistant & MQTT Ready:** Publishes device states, extractor telemetry, and control topics over MQTT.
+
+## Web UI Preview
+
+![Monitored Devices Web UI](assets/ui-monitored-devices.png)
+
+*Monitored Devices dashboard showing the active **Primary** switch toggle (`40%` preset), secondary GATT/passive switches with individual suction presets (`60%` and `100%`), and live discovery.*
 
 ## Tested Hardware
 
