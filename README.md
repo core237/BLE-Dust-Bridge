@@ -42,9 +42,9 @@ The following specific models are hardware verified with **BLE-Dust-Bridge** (ot
 
 ## Web Installer
 
-* **Plug your M5 Atom Lite into your USB port
-* **Go to the web installer at https://core237.github.io/BLE-Dust-Bridge/ and follow the directions
-* **Enjoy
+* **Plug your M5 Atom Lite into your USB port**
+* **Go to the web installer at https://core237.github.io/BLE-Dust-Bridge/ and follow the directions**
+* **Enjoy**
 
 ## Shelly Plug Script
 
