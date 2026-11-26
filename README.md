@@ -40,10 +40,11 @@ The following specific models are hardware verified with **BLE-Dust-Bridge** (ot
 
 > **Note on choosing a Primary Switch (`CT-F I` vs. `PTT` Buttons):** The **Festool CT-F I (`578499`)** works well as a secondary trigger, but is generally unsuitable as a **primary** switch due to its long internal timeouts between transmissions. For instant response, reliable `2x`/`3x` tap speed stepping, and momentary press-and-hold control, use a dedicated **Passive or GATT PTT switch** as your primary button.
 
-## Web Installer & OTA Firmware
+## Web Installer
 
-* **Web Installer (Flash a fresh AtomS3 Lite via USB in Chrome/Edge):** https://core237.github.io/BLE-Dust-Bridge/
-* **Latest OTA Binary (`firmware.bin` for Settings → Update):** https://github.com/core237/BLE-Dust-Bridge/releases/latest/download/firmware.bin
+* **Plug your M5 Atom Lite into your USB port
+* **Go to the web installer at https://core237.github.io/BLE-Dust-Bridge/ and follow the directions
+* **Enjoy
 
 ## Shelly Plug Script
 
