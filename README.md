@@ -8,7 +8,7 @@ A Bluetooth bridge for controlling Festool dust extractors with an M5Stack AtomS
 
 **BLE-Dust-Bridge** turns an ESP32-S3 into a control and automation hub pairing directly to your Festool extractor over standard bluetooth with zero hardware modifications, wiring taps, or extractor firmware alterations:
 
-* ** Vibe-coded and presented "As-Is".
+* **Vibe-coded and presented "As-Is".
 
 * **100% Non-Invasive Native BLE Pairing:** Connects directly to the extractor using its built-in Bluetooth pairing button and standard BLE protocol—no opening the vacuum, splicing wires, or modifying factory hardware.
 * **Automatic Tool On/Off (Shelly Gen4 Plug):** Automatically starts and stops your dust extractor when a corded tool powers on or off through a **Shelly Gen4** smart plug (`shelly_dust_beacon.js`), with a configurable wattage cutoff threshold.
