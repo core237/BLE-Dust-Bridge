@@ -1,17 +1,32 @@
 # BLE-Dust-Bridge
 
-A BLE bridge for controlling Festool dust extractors on an M5Stack AtomS3 Lite (ESP32-S3) using Festool CT-F remotes, passive/GATT wireless PTT switches, Festool Bluetooth batteries, and Shelly Gen3/Gen4 power-monitoring smart plugs.
+A Bluetooth bridge for controlling Festool dust extractors with an M5Stack AtomS3 Lite (ESP32-S3) using Festool CT-F remotes, passive/GATT wireless PTT switches, Festool Bluetooth batteries, and Shelly Gen4 smart plugs.
 
 ![Supported Hardware Lineup](assets/hardware-lineup.jpg)
 
 ## Overview & Features
 
-**BLE-Dust-Bridge** turns a compact M5Stack AtomS3 Lite into an automated dust-collection hub for your workshop—bridging wireless triggers and corded power tools (such as a Shaper Origin) to your Bluetooth-enabled Festool extractor without hardware modifications:
+**BLE-Dust-Bridge** turns a compact M5Stack AtomS3 Lite into a wireless control and automation hub for your workshop—connecting wireless switches, Bluetooth batteries, and corded power tools (such as a Shaper Origin) to your Bluetooth-enabled Festool dust extractor without hardware modifications:
 
-* **Multi-Trigger Automation:** Automatically starts and stops your dust extractor from **CT-F** remotes, passive burst or **GATT-only PTT** wireless buttons, **Festool Bluetooth batteries**, and **Shelly Gen3/Gen4** power-monitoring plugs.
-* **Smart Wattage & Ramp-Rate Filtering:** Monitors live tool power draw over BLE beacons (`shelly_dust_beacon.js`) with configurable wattage cutoffs (e.g., `45W–50W` to ignore idle draw and Z-axis servo spikes on a Shaper Origin) and configurable post-cut evacuation delay.
-* **Built-In Web Dashboard & OTA Updates:** Configure devices, monitor live telemetry, and install firmware updates directly over Wi-Fi via the bridge's hosted web UI (`http://dustbridge.local`).
+* **Automatic Tool On/Off (Shelly Gen4 Plug):** Automatically starts and stops your dust extractor when a corded tool powers on or off through a **Shelly Gen4** smart plug (`shelly_dust_beacon.js`), with a configurable wattage cutoff threshold and post-cut evacuation delay.
+* **Wireless Switch & Battery Triggering:** Manually toggle or trigger dust collection from **Festool CT-F** remotes, passive burst or **GATT-only PTT** wireless switches, and **Festool Bluetooth batteries**.
+* **Remote Suction Speed Adjustment:** Double-tap (`2x`) or triple-tap (`3x`) the primary wireless switch while the extractor is running to adjust suction speed remotely without walking back to the vacuum.
+* **Momentary Press-and-Hold Mode:** Configure switches for momentary operation so the extractor runs only while the button is held down and stops immediately upon release.
+* **Built-In Web Dashboard & OTA Updates:** Pair devices, configure thresholds and switch modes, view live telemetry, and install firmware updates over Wi-Fi via the hosted web UI (`http://dustbridge.local`).
 * **Home Assistant & MQTT Ready:** Publishes device states, extractor telemetry, and control topics over MQTT.
+
+## Tested Hardware
+
+The following specific models are the exact hardware verified with **BLE-Dust-Bridge** (other Bluetooth-enabled Festool extractors, Bluetooth battery packs, or compatible passive/GATT BLE buttons may also work, but have not been tested):
+
+| Role | Device / Model | Link |
+| :--- | :--- | :--- |
+| **Bridge Controller** | M5Stack AtomS3 Lite (ESP32-S3) | [Amazon (`B0D6S1LD1G`)](https://www.amazon.com/dp/B0D6S1LD1G) |
+| **Dust Extractor** | Festool CT MIDI I HEPA (`578512`) | [Festool USA (`578512`)](https://www.festoolusa.com/products/dust-extractors/compact-dust-extractors/578512---ct-midi-i-hepa-us) |
+| **Wireless Remote** | Festool CT-F I Remote (`578499`) | [Festool USA (`578499`)](https://www.festoolusa.com/accessories/dust-extraction/additions-to-the-system/modules/578499---ct-f-i) |
+| **GATT-Only Button** | Wireless PTT Switch (GATT-Only) | [Amazon (`B0GYSGB8DP`)](https://www.amazon.com/dp/B0GYSGB8DP) |
+| **Passive / GATT Button** | Wireless PTT Switch (Passive or GATT) | [Amazon (`B0C2DH24FJ`)](https://www.amazon.com/dp/B0C2DH24FJ) |
+| **Smart Power Plug** | Shelly Plug US Gen4 | [Amazon (`B0G2YY8TCJ`)](https://www.amazon.com/dp/B0G2YY8TCJ) |
 
 ## Web Installer & OTA Firmware
 
@@ -20,4 +35,4 @@ A BLE bridge for controlling Festool dust extractors on an M5Stack AtomS3 Lite (
 
 ## Shelly Plug Script
 
-* **Gen3 / Gen4 Power Beacon:** [`shelly/shelly_dust_beacon.js`](shelly/shelly_dust_beacon.js)
+* **Gen4 Power Beacon:** [`shelly/shelly_dust_beacon.js`](shelly/shelly_dust_beacon.js)
