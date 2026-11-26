@@ -19,7 +19,7 @@ A Bluetooth bridge for controlling Festool dust extractors with an M5Stack AtomS
 
 ## Web UI Preview
 
-<img src="assets/ui-monitored-devices.png" alt="Monitored Devices Web UI" width="480">
+<img src="assets/ui-monitored-devices.png" alt="Monitored Devices Web UI" width="280">
 
 
 
