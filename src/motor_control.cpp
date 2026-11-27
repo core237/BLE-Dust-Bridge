@@ -13,7 +13,7 @@ bool isAnyButtonGestureBusy() {
 void resetMonitoredButtonGesture(MonitoredDevice& m, bool clearLatched) {
     m.btnPhase = BTN_IDLE;
     m.btnTapCount = 0;
-    m.hoseHoldActivated = false;
+    m.primaryHoldActivated = false;
     m.wakePreTriggered = false;
     if (clearLatched) {
         m.btnLastSeqByte = -1;
@@ -35,15 +35,15 @@ void resetAllMonitoredButtonGestures(bool clearLatched) {
 }
 
 void syncButtonDemandsFromMonitored() {
-    bool anyHoseMom = false;
-    String bestHoseMomMac = "";
-    uint8_t bestHoseMomSpd = 100;
-    unsigned long newestHoseMomTs = 0;
+    bool anyPrimaryMom = false;
+    String bestPrimaryMomMac = "";
+    uint8_t bestPrimaryMomSpd = 100;
+    unsigned long newestPrimaryMomTs = 0;
 
-    bool anyHoseToggle = false;
-    String bestHoseMac = "";
-    uint8_t bestHoseSpd = 100;
-    unsigned long newestHoseTs = 0;
+    bool anyPrimaryToggle = false;
+    String bestPrimaryMac = "";
+    uint8_t bestPrimarySpd = 100;
+    unsigned long newestPrimaryTs = 0;
 
     bool anyToolToggle = false;
     String bestToolMac = "";
@@ -52,16 +52,16 @@ void syncButtonDemandsFromMonitored() {
 
     for (const auto& m : monitoredList) {
         if (m.btnType == 0) continue;
-        bool isHoseGatt = (m.isHose && m.isGatt);
-        if (m.momActive && isHoseGatt) {
-            if (!anyHoseMom || m.btnPressStartMs >= newestHoseMomTs) {
-                anyHoseMom = true; newestHoseMomTs = m.btnPressStartMs; bestHoseMomMac = m.address; bestHoseMomSpd = m.momSpeed;
+        bool isPrimaryGatt = (m.isPrimary && m.isGatt);
+        if (m.momActive && isPrimaryGatt) {
+            if (!anyPrimaryMom || m.btnPressStartMs >= newestPrimaryMomTs) {
+                anyPrimaryMom = true; newestPrimaryMomTs = m.btnPressStartMs; bestPrimaryMomMac = m.address; bestPrimaryMomSpd = m.momSpeed;
             }
         }
         if (m.toggleActive) {
-            if (isHoseGatt) {
-                if (!anyHoseToggle || m.toggleActivatedMs >= newestHoseTs) {
-                    anyHoseToggle = true; newestHoseTs = m.toggleActivatedMs; bestHoseMac = m.address; bestHoseSpd = m.speed;
+            if (isPrimaryGatt) {
+                if (!anyPrimaryToggle || m.toggleActivatedMs >= newestPrimaryTs) {
+                    anyPrimaryToggle = true; newestPrimaryTs = m.toggleActivatedMs; bestPrimaryMac = m.address; bestPrimarySpd = m.speed;
                 }
             } else {
                 if (!anyToolToggle || m.speed > bestToolSpd || (m.speed == bestToolSpd && m.toggleActivatedMs >= newestToolTs)) {
@@ -71,13 +71,13 @@ void syncButtonDemandsFromMonitored() {
         }
     }
 
-    hoseMomentaryActive = anyHoseMom;
-    activeHoseMomMac = bestHoseMomMac;
-    if (anyHoseMom) hoseMomTargetSpeed = bestHoseMomSpd;
+    primaryMomentaryActive = anyPrimaryMom;
+    activePrimaryMomMac = bestPrimaryMomMac;
+    if (anyPrimaryMom) primaryMomTargetSpeed = bestPrimaryMomSpd;
 
-    hoseToggleDemandActive = anyHoseToggle;
-    activeHoseToggleMac = bestHoseMac;
-    if (anyHoseToggle) hoseToggleTargetSpeed = bestHoseSpd;
+    primaryToggleDemandActive = anyPrimaryToggle;
+    activePrimaryToggleMac = bestPrimaryMac;
+    if (anyPrimaryToggle) primaryToggleTargetSpeed = bestPrimarySpd;
 
     btnToggleDemandActive = anyToolToggle;
     activeBtnToggleMac = bestToolMac;
@@ -120,9 +120,9 @@ void clearAllButtonToggles() {
     syncButtonDemandsFromMonitored();
 }
 
-void clearOtherHoseButtonStates(const String& activeMac) {
+void clearOtherPrimaryButtonStates(const String& activeMac) {
     for (auto& other : monitoredList) {
-        if (other.btnType > 0 && other.isHose && !other.address.equalsIgnoreCase(activeMac)) {
+        if (other.btnType > 0 && other.isPrimary && !other.address.equalsIgnoreCase(activeMac)) {
             other.toggleActive = false;
             other.toggleActivatedMs = 0;
             other.momActive = false;
@@ -132,7 +132,7 @@ void clearOtherHoseButtonStates(const String& activeMac) {
 }
 
 bool isAnyPrimaryDemandActive() {
-    return hoseMomentaryActive || hoseToggleDemandActive || webUiDemandActive || btnToggleDemandActive || toolBattDemandActive;
+    return primaryMomentaryActive || primaryToggleDemandActive || webUiDemandActive || btnToggleDemandActive || toolBattDemandActive;
 }
 
 MonitoredDevice* getWinningStandardDevice(bool* isWebUiWon) {
@@ -160,8 +160,8 @@ MonitoredDevice* getWinningStandardDevice(bool* isWebUiWon) {
 }
 
 uint8_t getActiveLiveSpeedOverride() {
-    if (hoseMomentaryActive) { MonitoredDevice* s = findMonitoredByMac(activeHoseMomMac); return s ? s->liveSpeedOverride : 0; }
-    if (hoseToggleDemandActive) { MonitoredDevice* s = findMonitoredByMac(activeHoseToggleMac); return s ? s->liveSpeedOverride : 0; }
+    if (primaryMomentaryActive) { MonitoredDevice* s = findMonitoredByMac(activePrimaryMomMac); return s ? s->liveSpeedOverride : 0; }
+    if (primaryToggleDemandActive) { MonitoredDevice* s = findMonitoredByMac(activePrimaryToggleMac); return s ? s->liveSpeedOverride : 0; }
     bool webWon = false;
     MonitoredDevice* stdDev = getWinningStandardDevice(&webWon);
     if (webWon) return webUiSpeedOverride;
@@ -170,8 +170,8 @@ uint8_t getActiveLiveSpeedOverride() {
 
 void setActiveLiveSpeedOverride(uint8_t spd) {
     uint8_t q = quantizeSpeed(spd);
-    if (hoseMomentaryActive) { MonitoredDevice* s = findMonitoredByMac(activeHoseMomMac); if (s) s->liveSpeedOverride = q; }
-    else if (hoseToggleDemandActive) { MonitoredDevice* s = findMonitoredByMac(activeHoseToggleMac); if (s) s->liveSpeedOverride = q; }
+    if (primaryMomentaryActive) { MonitoredDevice* s = findMonitoredByMac(activePrimaryMomMac); if (s) s->liveSpeedOverride = q; }
+    else if (primaryToggleDemandActive) { MonitoredDevice* s = findMonitoredByMac(activePrimaryToggleMac); if (s) s->liveSpeedOverride = q; }
     else {
         bool webWon = false;
         MonitoredDevice* stdDev = getWinningStandardDevice(&webWon);
@@ -194,16 +194,16 @@ void evaluateMotorDemand() {
     bool wantOn = false;
     uint8_t targetSpeed = 20;
 
-    if (hoseMomentaryActive) {
+    if (primaryMomentaryActive) {
         wantOn = true;
-        activePresetSpeed = hoseMomTargetSpeed;
-        MonitoredDevice* s = findMonitoredByMac(activeHoseMomMac);
-        targetSpeed = (s && s->liveSpeedOverride > 0) ? s->liveSpeedOverride : hoseMomTargetSpeed;
-    } else if (hoseToggleDemandActive) {
+        activePresetSpeed = primaryMomTargetSpeed;
+        MonitoredDevice* s = findMonitoredByMac(activePrimaryMomMac);
+        targetSpeed = (s && s->liveSpeedOverride > 0) ? s->liveSpeedOverride : primaryMomTargetSpeed;
+    } else if (primaryToggleDemandActive) {
         wantOn = true;
-        activePresetSpeed = hoseToggleTargetSpeed;
-        MonitoredDevice* s = findMonitoredByMac(activeHoseToggleMac);
-        targetSpeed = (s && s->liveSpeedOverride > 0) ? s->liveSpeedOverride : hoseToggleTargetSpeed;
+        activePresetSpeed = primaryToggleTargetSpeed;
+        MonitoredDevice* s = findMonitoredByMac(activePrimaryToggleMac);
+        targetSpeed = (s && s->liveSpeedOverride > 0) ? s->liveSpeedOverride : primaryToggleTargetSpeed;
     } else if (webUiDemandActive || btnToggleDemandActive || toolBattDemandActive) {
         wantOn = true;
         uint8_t bestSpd = 0;
@@ -270,7 +270,7 @@ static uint8_t getCurrentStandardDemandSpeed() {
 }
 
 static bool isBlockedByActiveRun(const String& mac, uint8_t reqSpd) {
-    if (hoseMomentaryActive || hoseToggleDemandActive) return true;
+    if (primaryMomentaryActive || primaryToggleDemandActive) return true;
     uint8_t activeStdSpd = getCurrentStandardDemandSpeed();
     if (activeStdSpd > 0) {
         return (reqSpd < activeStdSpd);
@@ -286,16 +286,16 @@ void executeToggleTapAction(const String& mac, uint8_t presetSpd, uint8_t taps, 
     MonitoredDevice* targetMon = findMonitoredByMac(mac);
     if (!targetMon) return;
 
-    bool isHoseGatt = (targetMon->isHose && targetMon->isGatt);
-    const char* roleTag = isHoseGatt ? "PRIMARY TOGGLE" : "BTN TOGGLE";
+    bool isPrimaryGatt = (targetMon->isPrimary && targetMon->isGatt);
+    const char* roleTag = isPrimaryGatt ? "PRIMARY TOGGLE" : "BTN TOGGLE";
 
     if (taps == 1) {
         if (!targetMon->toggleActive) {
-            if (!isHoseGatt && isBlockedByActiveRun(mac, presetSpd)) {
+            if (!isPrimaryGatt && isBlockedByActiveRun(mac, presetSpd)) {
                 LOGF("[%s] Ignored press -> higher/equal speed run or Primary switch is already active (%s)\n", roleTag, mac.c_str());
                 return;
             }
-            if (!isHoseGatt && hoseClearActive) {
+            if (!isPrimaryGatt && hoseClearActive) {
                 LOGF("[%s] 1x Tap -> OFF (cleared evac run) (%s)\n", roleTag, mac.c_str());
                 hoseClearActive = false;
                 targetMon->liveSpeedOverride = 0;
@@ -305,10 +305,10 @@ void executeToggleTapAction(const String& mac, uint8_t presetSpd, uint8_t taps, 
             }
             LOGF("[%s] 1x Tap -> %s at %u%% (%s)\n",
                  roleTag,
-                 isHoseGatt ? "Takeover ON" : "ON",
+                 isPrimaryGatt ? "Takeover ON" : "ON",
                  presetSpd, mac.c_str());
-            if (isHoseGatt) {
-                clearOtherHoseButtonStates(mac);
+            if (isPrimaryGatt) {
+                clearOtherPrimaryButtonStates(mac);
                 webUiDemandActive = false;
                 webUiSpeedOverride = 0;
             }
@@ -321,7 +321,7 @@ void executeToggleTapAction(const String& mac, uint8_t presetSpd, uint8_t taps, 
         } else {
             LOGF("[%s] 1x Tap -> %s (%s)\n",
                  roleTag,
-                 isHoseGatt ? "Release OFF" : "OFF",
+                 isPrimaryGatt ? "Release OFF" : "OFF",
                  mac.c_str());
             targetMon->toggleActive = false;
             targetMon->toggleActivatedMs = 0;
@@ -333,15 +333,15 @@ void executeToggleTapAction(const String& mac, uint8_t presetSpd, uint8_t taps, 
             }
             demandDirty = true;
         }
-    } else if (taps == 2 && isHoseGatt) {
-        if (isAnyPrimaryDemandActive() && !hoseClearActive && !hoseMomentaryActive) {
+    } else if (taps == 2 && isPrimaryGatt) {
+        if (isAnyPrimaryDemandActive() && !hoseClearActive && !primaryMomentaryActive) {
             LOGF("[%s] 2x Tap -> Speed +20%% (%s)\n", roleTag, mac.c_str());
             adjustLiveSpeed(+20);
         } else {
             LOGF("[%s] Ignored 2x Tap -> extractor is idle or in momentary mode (%s)\n", roleTag, mac.c_str());
         }
-    } else if (taps >= 3 && isHoseGatt) {
-        if (isAnyPrimaryDemandActive() && !hoseClearActive && !hoseMomentaryActive) {
+    } else if (taps >= 3 && isPrimaryGatt) {
+        if (isAnyPrimaryDemandActive() && !hoseClearActive && !primaryMomentaryActive) {
             LOGF("[%s] 3x Tap -> Speed -20%% (%s)\n", roleTag, mac.c_str());
             adjustLiveSpeed(-20);
         } else {
@@ -354,9 +354,9 @@ void onButtonRelease(const String& mac, unsigned long now) {
     MonitoredDevice* m = findMonitoredByMac(mac);
     if (!m || m->btnPhase == BTN_IDLE) return;
 
-    bool isHoseBtn = (m->isHose && m->isGatt);
-    if (isHoseBtn && m->hoseHoldActivated) {
-        m->hoseHoldActivated = false;
+    bool isPrimaryBtn = (m->isPrimary && m->isGatt);
+    if (isPrimaryBtn && m->primaryHoldActivated) {
+        m->primaryHoldActivated = false;
         m->momActive = false;
         m->liveSpeedOverride = 0;
         m->btnPhase = BTN_IDLE;
@@ -385,7 +385,7 @@ void onButtonRelease(const String& mac, unsigned long now) {
     } else {
         m->btnPhase = BTN_IDLE;
         m->btnTapCount = 0;
-        m->hoseHoldActivated = false;
+        m->primaryHoldActivated = false;
     }
 }
 
@@ -400,20 +400,20 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
         m->btnLastSeqByte = seqByte;
     }
 
-    bool isHoseBtn = (m->isHose && m->isGatt);
+    bool isPrimaryBtn = (m->isPrimary && m->isGatt);
 
     if (m->btnPhase == BTN_IDLE) {
         m->btnPhase = BTN_HELD;
         m->btnPressStartMs = now;
         m->btnLastPacketMs = now;
         m->btnTapCount = 1;
-        m->hoseHoldActivated = false;
+        m->primaryHoldActivated = false;
 
         if (!isGatt) {
             executeToggleTapAction(mac, presetSpd, 1, now);
-        } else if (isHoseBtn) {
+        } else if (isPrimaryBtn) {
             bool underlyingRunning = (webUiDemandActive || btnToggleDemandActive || toolBattDemandActive ||
-                                      hoseToggleDemandActive || (hoseMomentaryActive && !activeHoseMomMac.equalsIgnoreCase(mac)));
+                                      primaryToggleDemandActive || (primaryMomentaryActive && !activePrimaryMomMac.equalsIgnoreCase(mac)));
             if (!underlyingRunning && !m->toggleActive) {
                 m->momActive = true;
                 m->momSpeed = presetSpd;
@@ -431,7 +431,7 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
         m->btnPressStartMs = now;
         m->btnLastPacketMs = now;
         m->btnTapCount++;
-        if (isHoseBtn && m->momActive) {
+        if (isPrimaryBtn && m->momActive) {
             m->momActive = false;
             m->liveSpeedOverride = 0;
             syncButtonDemandsFromMonitored();
@@ -445,14 +445,14 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
 
     if (m->btnPhase == BTN_HELD) {
         m->btnLastPacketMs = now;
-        if (isHoseBtn && !m->hoseHoldActivated && elapsedMs(now, m->btnPressStartMs) >= BTN_MOMENTARY_TAP_MAX_MS) {
-            m->hoseHoldActivated = true;
+        if (isPrimaryBtn && !m->primaryHoldActivated && elapsedMs(now, m->btnPressStartMs) >= BTN_MOMENTARY_TAP_MAX_MS) {
+            m->primaryHoldActivated = true;
             m->btnTapCount = 0;
             if (m->toggleActive) {
                 m->toggleActive = false;
                 m->toggleActivatedMs = 0;
             }
-            clearOtherHoseButtonStates(mac);
+            clearOtherPrimaryButtonStates(mac);
             m->momActive = true;
             m->momSpeed = presetSpd;
             m->liveSpeedOverride = 0;
@@ -470,13 +470,13 @@ void serviceButtonGestures(unsigned long now) {
 
         if (m.btnPhase == BTN_WAIT_TAP) {
             if (elapsedMs(now, m.btnReleaseMs) >= BTN_GATT_TAP_WINDOW_MS) {
-                if (m.isHose && m.isGatt) {
+                if (m.isPrimary && m.isGatt) {
                     uint8_t taps = m.btnTapCount;
                     m.btnTapCount = 0;
                     m.btnPhase = BTN_IDLE;
                     if (taps == 1) {
                         if (!m.toggleActive) {
-                            clearOtherHoseButtonStates(m.address);
+                            clearOtherPrimaryButtonStates(m.address);
                             m.momActive = false;
                             m.toggleActive = true;
                             m.toggleActivatedMs = now;
@@ -510,7 +510,7 @@ void serviceButtonGestures(unsigned long now) {
                                 demandDirty = true;
                             }
                         }
-                        if (isAnyPrimaryDemandActive() && !hoseClearActive && !hoseMomentaryActive) {
+                        if (isAnyPrimaryDemandActive() && !hoseClearActive && !primaryMomentaryActive) {
                             if (taps == 2) {
                                 LOGF("[PRIMARY AUTO] 2x Tap -> Speed +20%% (%s)\n", m.address.c_str());
                                 adjustLiveSpeed(+20);

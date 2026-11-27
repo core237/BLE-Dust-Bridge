@@ -14,3 +14,5 @@ void drainScanEvents(unsigned long now);
 void startBleConnect(const String& macStr, uint8_t forcedType = 255);
 void finishBleConnect(unsigned long now);
 void initBleSubsystem();
+
+void noteWebUiActivity();

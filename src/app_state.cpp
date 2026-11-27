@@ -128,13 +128,13 @@ bool forceStopNow = false;
 bool hoseClearActive = false;
 unsigned long hoseClearTimer = 0;
 
-bool hoseMomentaryActive = false;
-String activeHoseMomMac = "";
-uint8_t hoseMomTargetSpeed = 100;
+bool primaryMomentaryActive = false;
+String activePrimaryMomMac = "";
+uint8_t primaryMomTargetSpeed = 100;
 
-bool hoseToggleDemandActive = false;
-String activeHoseToggleMac = "";
-uint8_t hoseToggleTargetSpeed = 100;
+bool primaryToggleDemandActive = false;
+String activePrimaryToggleMac = "";
+uint8_t primaryToggleTargetSpeed = 100;
 
 bool btnToggleDemandActive = false;
 String activeBtnToggleMac = "";

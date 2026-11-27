@@ -123,7 +123,7 @@ static void buildStatusJson(String& out) {
     }
 
     doc["state"] = (connState == STATE_CONNECTED ? "CONNECTED" : (connState == STATE_CONNECTING ? "CONNECTING" : "DISCONNECTED"));
-    doc["fw_version"] = "1.0.0";
+    doc["fw_version"] = "1.1.0";
     doc["auth_en"] = auth_en;
     doc["power"] = currentPowerState; doc["speed"] = currentSuctionPct;
     doc["preset_speed"] = activePresetSpeed; doc["override_speed"] = getActiveLiveSpeedOverride();
@@ -186,7 +186,7 @@ static void buildStatusJson(String& out) {
         o["watts"] = (liveBle && liveBle->watts >= 0) ? liveBle->watts : m.lastWatts;
         o["speed"] = m.speed; o["btnType"] = m.btnType;
         o["is_gatt"] = m.isGatt; o["can_adv"] = m.canAdv; o["can_gatt"] = m.canGatt;
-        o["is_hose"] = (m.isGatt && m.isHose); o["gatt_linked"] = gattLinked; o["btn_live"] = btnLive;
+        o["is_primary"] = (m.isGatt && (!m.canAdv || m.isPrimary)); o["gatt_linked"] = gattLinked; o["btn_live"] = btnLive;
         o["cfg"] = isMonitoredConfiguring(m, now);
         o["await_rel"] = m.waitReleaseAfterPair;
     }
@@ -380,7 +380,7 @@ void setupWebServer() {
         server.send(200, "application/json", "{\"ok\":true}");
     });
 
-    server.on("/api/status", []() { if (!checkAuth(true)) return; sendJsonStatus(); });
+    server.on("/api/status", []() { noteWebUiActivity(); if (!checkAuth(true)) return; sendJsonStatus(); });
 
     server.on("/api/settings", HTTP_GET, []() {
         if (!checkAuth(true)) return;
@@ -733,7 +733,7 @@ void setupWebServer() {
         bool hasSpeedArg = server.hasArg("speed");
         if (hasSpeedArg) {
             userManualSpeed = quantizeSpeed((uint8_t)server.arg("speed").toInt());
-            bool otherDemandActive = (hoseMomentaryActive || hoseToggleDemandActive || btnToggleDemandActive || toolBattDemandActive);
+            bool otherDemandActive = (primaryMomentaryActive || primaryToggleDemandActive || btnToggleDemandActive || toolBattDemandActive);
             if (!webUiDemandActive && otherDemandActive) {
                 setActiveLiveSpeedOverride(userManualSpeed);
                 evaluateMotorDemand();
@@ -836,11 +836,11 @@ void setupWebServer() {
         sendJsonStatus();
     });
 
-    server.on("/api/monitored/hose", []() {
+    server.on("/api/monitored/primary", []() {
         if (!checkAuth(true)) return;
         if (server.hasArg("mac")) {
             String m = server.arg("mac");
-            bool nextHose = server.hasArg("hose") && (server.arg("hose").toInt() == 1);
+            bool nextPrimary = server.hasArg("primary") && (server.arg("primary").toInt() == 1);
             uint8_t aType = 255, bType = 1, spd = 20;
             bool shouldConnectGatt = false;
             bool shouldDisconnectGatt = false;
@@ -852,14 +852,18 @@ void setupWebServer() {
                     if (aType == 255 && (i.addrType == 0 || i.addrType == 1)) aType = i.addrType;
                     else if (aType == 0 || aType == 1) i.addrType = aType;
                     if (i.btnType > 0) {
-                        if (nextHose && !i.canGatt) {
+                        if (nextPrimary && !i.canGatt) {
                             LOGF("[PRIMARY ROLE] %s does not support GATT Primary mode; ignoring.\n", m.c_str());
                             break;
                         }
-                        i.isHose = nextHose;
+                        if (!nextPrimary && !i.canAdv) {
+                            LOGF("[PRIMARY ROLE] %s is GATT-only -> Primary remains locked ON.\n", m.c_str());
+                            break;
+                        }
+                        i.isPrimary = nextPrimary;
                         i.waitReleaseAfterPair = false;
                         i.pairHoldGuardUntilMs = 0;
-                        if (nextHose) {
+                        if (nextPrimary) {
                             i.isGatt = true;
                             if (i.canAdv) i.periodicBeacon = false;
                             i.activeRaw = "GATT:FFE0/HID";
@@ -965,8 +969,9 @@ void setupWebServer() {
 
             if (findMonitoredByMac(mac) == nullptr) {
                 bool gReady = (!isGattInit) || alreadyConnGatt;
+                bool initPrimary = (isGattInit && !canAdvInit);
                 uint8_t resolvedAddrType = inferRandomAddrType(mac, addrType);
-                monitoredList.push_back({mac, name, initAdvName, (uint8_t)speed, btnType, raw, false, false, 0, isGattInit, gReady, false, 0, false, canAdvInit, initMatNum, initDevCat, 60, -1, canGattInit, resolvedAddrType});
+                monitoredList.push_back({mac, name, initAdvName, (uint8_t)speed, btnType, raw, false, false, 0, isGattInit, gReady, false, 0, initPrimary, canAdvInit, initMatNum, initDevCat, 60, -1, canGattInit, resolvedAddrType});
             }
             saveMonitoredToNvs();
             if (isGattInit && !alreadyConnGatt) enqueueGattConnect(mac, inferRandomAddrType(mac, addrType), btnType, (uint8_t)speed, true);

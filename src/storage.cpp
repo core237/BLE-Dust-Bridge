@@ -19,7 +19,7 @@ void saveMonitoredToNvs() {
         o["cn"] = m.customNamed;
         o["gatt"] = m.isGatt;
         o["grdy"] = m.gattReady;
-        o["hose"] = (m.isHose && m.isGatt);
+        o["primary"] = (m.isPrimary && m.isGatt);
         o["adv"] = m.canAdv;
         o["cg"] = m.canGatt;
         o["mat"] = m.matNum;
@@ -59,8 +59,9 @@ void loadMonitoredFromNvs() {
         bool gatt = o["gatt"] | false;
         bool gReady = o.containsKey("grdy") ? (bool)(o["grdy"] | false) : (!gatt);
         if (!gatt) gReady = true;
-        bool hose = (o["hose"] | false) && gatt;
         bool cAdv = o["adv"] | (!gatt);
+        bool rawPrimary = o.containsKey("primary") ? (bool)(o["primary"] | false) : (bool)(o["hose"] | false);
+        bool isPrimary = gatt && (!cAdv || rawPrimary);
         bool cGatt = o["cg"] | gatt;
         uint32_t mat = o["mat"] | 0;
         uint8_t cat = o["cat"] | 0;
@@ -81,10 +82,10 @@ void loadMonitoredFromNvs() {
                 cGatt = false;
                 gatt = false;
                 gReady = true;
-                hose = false;
+                isPrimary = false;
             }
         }
-        monitoredList.push_back({mac, nm, advNm, spd, bt, raw, cn, false, 0, gatt, gReady, false, 0, hose, cAdv, mat, cat, wThr, -1, cGatt, aType, pBcn});
+        monitoredList.push_back({mac, nm, advNm, spd, bt, raw, cn, false, 0, gatt, gReady, false, 0, isPrimary, cAdv, mat, cat, wThr, -1, cGatt, aType, pBcn});
     }
     refreshMonMacCache();
 }

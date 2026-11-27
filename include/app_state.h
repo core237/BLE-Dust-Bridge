@@ -54,11 +54,13 @@ struct MonitoredDevice {
     bool customNamed; bool toolActive; unsigned long toolLastSeen;
     bool isGatt; bool gattReady;
     bool toggleActive; unsigned long toggleActivatedMs;
-    bool isHose; bool canAdv; bool canGatt;
+    bool isPrimary; bool canAdv; bool canGatt;
     uint32_t matNum; uint8_t devCat;
     uint16_t wattsThr; int32_t lastWatts;
+    uint8_t offConfirmHits = 0;
+    int8_t lastShellySeq = -1;
     BtnNormPhase btnPhase = BTN_IDLE;
-    bool hoseHoldActivated = false;
+    bool primaryHoldActivated = false;
     int16_t btnLastSeqByte = -1;
     unsigned long btnPressStartMs = 0;
     unsigned long btnLastPacketMs = 0;
@@ -81,7 +83,7 @@ struct MonitoredDevice {
                     bool cGatt = false, uint8_t aType = 255, bool pBcn = false)
         : address(addr), name(nm), advName(advNm), speed(spd), btnType(bt), activeRaw(raw),
           customNamed(cn), toolActive(tAct), toolLastSeen(tSeen), isGatt(gatt), gattReady(gReady),
-          toggleActive(togAct), toggleActivatedMs(togMs), isHose(hose),
+          toggleActive(togAct), toggleActivatedMs(togMs), isPrimary(hose),
           canAdv(cAdv), canGatt(cGatt || gatt), matNum(mat), devCat(cat), wattsThr(wThr), lastWatts(lWatts),
           addrType(aType), periodicBeacon(pBcn) {}
 };
@@ -258,13 +260,13 @@ extern bool forceStopNow;
 extern bool hoseClearActive;
 extern unsigned long hoseClearTimer;
 
-extern bool hoseMomentaryActive;
-extern String activeHoseMomMac;
-extern uint8_t hoseMomTargetSpeed;
+extern bool primaryMomentaryActive;
+extern String activePrimaryMomMac;
+extern uint8_t primaryMomTargetSpeed;
 
-extern bool hoseToggleDemandActive;
-extern String activeHoseToggleMac;
-extern uint8_t hoseToggleTargetSpeed;
+extern bool primaryToggleDemandActive;
+extern String activePrimaryToggleMac;
+extern uint8_t primaryToggleTargetSpeed;
 
 extern bool btnToggleDemandActive;
 extern String activeBtnToggleMac;

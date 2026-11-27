@@ -7,6 +7,12 @@
 #include "mqtt_manager.h"
 #include "storage.h"
 
+// Track last Web UI /api/status poll so Wi-Fi gets balanced airtime only while a client is active
+static volatile unsigned long lastWebUiActivityMs = 0;
+void noteWebUiActivity() {
+    lastWebUiActivityMs = millis();
+}
+
 static ScanEvent scanQueue[SCAN_QUEUE_CAP];
 static volatile size_t scanQueueHead = 0;
 static volatile size_t scanQueueTail = 0;
@@ -271,8 +277,9 @@ static void startGattButtonConnect(const String& macStr, uint8_t addrType, uint8
     if (!s.client) {
         s.client = NimBLEDevice::createClient();
         s.client->setClientCallbacks(&gattBtnClientCB, false);
-        s.client->setConnectionParams(12, 20, 0, 300);
-        s.client->setConnectTimeout(900);
+        // Restored from Presep baseline: 4-event peripheral latency frees ~80% of radio slots for scanner
+        s.client->setConnectionParams(24, 40, 4, 400);
+        s.client->setConnectTimeout(1800);
     }
 
     LOGF("[GATT BTN] [Slot %d] Connecting to %s (addrType=%u)...\n", slotIdx, macStr.c_str(), addrType);
@@ -336,13 +343,13 @@ static void finishGattButtonConnect(unsigned long now) {
             if (monPtr && monPtr->wakePreTriggered) {
                 monPtr->wakePreTriggered = false;
                 if (monPtr->btnPhase == BTN_HELD) {
-                    unsigned long relTs = monPtr->isHose ? (monPtr->btnPressStartMs + 100UL) : now;
+                    unsigned long relTs = monPtr->isPrimary ? (monPtr->btnPressStartMs + 100UL) : now;
                     onButtonRelease(macStr, relTs);
                 }
             }
         }
         gattBtnLastTryMs = now;
-        setGattBackoff(macStr, now + 600UL);
+        setGattBackoff(macStr, now + 1200UL);
         setCoexScanner();
         return;
     }
@@ -407,13 +414,13 @@ static void finishGattButtonConnect(unsigned long now) {
             if (monPtr && monPtr->wakePreTriggered) {
                 monPtr->wakePreTriggered = false;
                 if (monPtr->btnPhase == BTN_HELD) {
-                    unsigned long relTs = monPtr->isHose ? (monPtr->btnPressStartMs + 100UL) : now;
+                    unsigned long relTs = monPtr->isPrimary ? (monPtr->btnPressStartMs + 100UL) : now;
                     onButtonRelease(macStr, relTs);
                 }
             }
         }
         gattBtnLastTryMs = now;
-        setGattBackoff(macStr, now + 600UL);
+        setGattBackoff(macStr, now + 1200UL);
         setCoexScanner();
         return;
     }
@@ -461,7 +468,7 @@ static void finishGattButtonConnect(unsigned long now) {
                     LOGF("[GATT BTN] %s wake pre-trigger handed off to live GATT link.\n", macStr.c_str());
                 } else if (wakeTapAlreadyReleased) {
                     if (m.btnPhase == BTN_HELD) {
-                        unsigned long relTs = m.isHose ? (m.btnPressStartMs + 100UL) : now;
+                        unsigned long relTs = m.isPrimary ? (m.btnPressStartMs + 100UL) : now;
                         onButtonRelease(macStr, relTs);
                     }
                     LOGF("[GATT BTN] %s quick wake tap completed on GATT connect.\n", macStr.c_str());
@@ -547,12 +554,11 @@ void serviceGattButton(unsigned long now) {
         }
 
         MonitoredDevice* monPtr = findMonitoredByMac(slotMac);
-        if (monPtr && !monPtr->canAdv && isSlotConnected && !slotGotAnyNotify && elapsedMs(now, slotConnAtMs) >= 1200UL) {
+        if (monPtr && !monPtr->canAdv && isSlotConnected && !slotGotAnyNotify && elapsedMs(now, slotConnAtMs) >= 600UL) {
             if (!monPtr->periodicBeacon) {
                 monPtr->periodicBeacon = true;
                 if (!needSaveMonitored) needSaveMonitoredAtMs = now;
                 needSaveMonitored = true;
-                LOGF("[GATT BTN] %s connected via idle beacon (no button press) -> wake pre-trigger disabled.\n", slotMac.c_str());
             }
         }
         if (isSlotConnected && elapsedMs(now, s.lastRssiMs) >= 5000UL) {
@@ -578,7 +584,7 @@ void serviceGattButton(unsigned long now) {
             continue;
         }
 
-        if (rxLog && rxPressed && monPtr->periodicBeacon && isSlotConnected && elapsedMs(now, slotConnAtMs) < 1200UL) {
+        if (rxLog && rxPressed && monPtr->periodicBeacon && isSlotConnected && elapsedMs(now, slotConnAtMs) < 600UL) {
             monPtr->periodicBeacon = false;
             if (!needSaveMonitored) needSaveMonitoredAtMs = now;
             needSaveMonitored = true;
@@ -624,7 +630,7 @@ void serviceGattButton(unsigned long now) {
             s.wakePreTriggered = false;
             monPtr->wakePreTriggered = false;
             if (monPtr->btnPhase == BTN_HELD) {
-                unsigned long relTs = monPtr->isHose ? (monPtr->btnPressStartMs + 100UL) : now;
+                unsigned long relTs = monPtr->isPrimary ? (monPtr->btnPressStartMs + 100UL) : now;
                 onButtonRelease(slotMac, relTs);
             }
             LOGF("[GATT BTN] %s quick wake tap completed before GATT link settled.\n", slotMac.c_str());
@@ -637,6 +643,15 @@ void serviceGattButton(unsigned long now) {
 
 void setCoexScanner() {
     if (extConnTaskRunning.load() || gattBtnTaskRunning.load() || wifiScanInProgress || Update.isRunning()) return;
+    unsigned long now = millis();
+    bool webActive = (lastWebUiActivityMs > 0 && elapsedMs(now, lastWebUiActivityMs) < 3000UL);
+    esp_coex_prefer_t desiredCoex = webActive ? ESP_COEX_PREFER_BALANCE : ESP_COEX_PREFER_BT;
+    static esp_coex_prefer_t lastCoexPref = (esp_coex_prefer_t)-1;
+    if (desiredCoex != lastCoexPref) {
+        esp_coex_preference_set(desiredCoex);
+        lastCoexPref = desiredCoex;
+    }
+
     NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_PUBLIC);
     NimBLEScan* pScan = NimBLEDevice::getScan();
     static bool scannerConfigured = false;
@@ -646,11 +661,11 @@ void setCoexScanner() {
     if (pScan->isScanning()) {
         pScan->stop();
     }
-    esp_coex_preference_set(ESP_COEX_PREFER_BALANCE);
     pScan->setDuplicateFilter(false);
     pScan->setActiveScan(false);
-    pScan->setInterval(64);
-    pScan->setWindow(44);
+    // Restored from Presep baseline: 160/80 (100ms cycle / 50ms listen)
+    pScan->setInterval(160);
+    pScan->setWindow(80);
     pScan->setMaxResults(0);
     scannerConfigured = true;
     pScan->start(0, false);
@@ -706,12 +721,26 @@ class ScanCallbacks : public NimBLEScanCallbacks {
         }
 
         bool isFestoolSvc = dev->isAdvertisingService(DUST_SVC_UUID);
-        bool isFestoolMfg = false, isShellyPlug = false, isBurstBtnAdv = false, isGattBtnAdv = false;
+        bool isFestoolMfg = false, isShaperMfg = false, isShellyPlug = false, isBurstBtnAdv = false, isGattBtnAdv = false;
         bool hasBtnSvc = false, hasFe3aSvc = false, hasFe39SvcData = false, hasFlags05 = false;
         bool isConnectable = (advType == 0 || advType == 1);
         bool hasFlags06 = false;
         if (advType == 1) {
             isGattBtnAdv = true;
+        }
+        if (dev->isAdvertisingService(NimBLEUUID((uint16_t)0x1812))) {
+            isGattBtnAdv = true;
+            isConnectable = true;
+            hasBtnSvc = true;
+        }
+        if (dev->isAdvertisingService(NimBLEUUID((uint16_t)0xFFE0))) {
+            isConnectable = true;
+            hasBtnSvc = true;
+        }
+        if (dev->haveAppearance()) {
+            uint16_t app = dev->getAppearance();
+            if (app == 0x0180) isBurstBtnAdv = true;
+            else if (app == 0x03C1 || app == 0x03C0 || app == 0x03C2) isGattBtnAdv = true;
         }
 
         int parsedSoc = -1, parsedState = -1;
@@ -818,11 +847,13 @@ class ScanCallbacks : public NimBLEScanCallbacks {
                         if (fDataLen >= 7) {
                             uint16_t wVal = (uint16_t)fData[5] | ((uint16_t)fData[6] << 8);
                             parsedWatts = relayOn ? (int32_t)wVal : 0;
-                            parsedState = (relayOn && wVal > 0) ? 1 : 0;
+                            parsedState = (relayOn && wVal >= 70) ? 1 : 0;
                         } else {
                             parsedState = relayOn ? 1 : 0;
                         }
-                    } else if (!isFestoolMfg && !isShellyPlug && fDataLen >= 3) {
+                    } else if (fData[0] == 0x5E && fData[1] == 0x0E) {
+                        isShaperMfg = true;
+                    } else if (!isFestoolMfg && !isShaperMfg && !isShellyPlug && fDataLen >= 3) {
                         uint16_t mfgId = (uint16_t)fData[0] | ((uint16_t)fData[1] << 8);
                         if (mfgId == 0x000D && fDataLen >= 4 && fDataLen <= 6) {
                             isBurstBtnAdv = true;
@@ -848,19 +879,21 @@ class ScanCallbacks : public NimBLEScanCallbacks {
                                strContainsCI(rawNameC, "CTM") || strContainsCI(rawNameC, "CTH") ||
                                strContainsCI(rawNameC, "CLEANTEC") || strContainsCI(rawNameC, "MIDI") ||
                                strContainsCI(rawNameC, "MINI"));
-        bool nameIsPlug = isShellyPlug || strStartsWithCI(rawNameC, "SHELLY-DUST") || strStartsWithCI(rawNameC, "SCC");
-        bool nameIsSwitch = strStartsWithCI(rawNameC, "PTT") || strContainsCI(rawNameC, "SHUTTER") ||
+        bool isBenchPilot = isShaperMfg || strStartsWithCI(rawNameC, "SCC");
+        bool nameIsPlug = !isBenchPilot && (isShellyPlug || strStartsWithCI(rawNameC, "SHELLY-DUST"));
+        bool nameIsSwitch = !isBenchPilot && (strStartsWithCI(rawNameC, "PTT") || strContainsCI(rawNameC, "SHUTTER") ||
                             strContainsCI(rawNameC, "ITAG") || strContainsCI(rawNameC, "CLICKER") ||
-                            strContainsCI(rawNameC, "KEYFOB");
+                            strContainsCI(rawNameC, "KEYFOB"));
 
-        bool isFestoolRemote = hasFe3aSvc || nameIsRemote || (isFestoolSvc && hasFlags05 && !hasFe39SvcData && !nameIsExtractor);
+        bool isFestoolRemote = !isBenchPilot && (hasFe3aSvc || nameIsRemote || (isFestoolSvc && hasFlags05 && !hasFe39SvcData && !nameIsExtractor));
         if (isFestoolRemote) {
             isBurstBtnAdv = true;
             isConnectable = false;
             if (!hasFe3aSvc && parsedState == -1) parsedState = -2;
         }
 
-        if (isPairedHit || ((isFestoolSvc || isFestoolMfg) && !isFestoolRemote && (nameIsExtractor || (isConnectable && parsedSoc < 0)))) ev.devCat = CAT_EXTRACTOR;
+        if (isBenchPilot && !isPairedHit) ev.devCat = CAT_OTHER;
+        else if (isPairedHit || ((isFestoolSvc || isFestoolMfg) && !isFestoolRemote && (nameIsExtractor || (isConnectable && parsedSoc < 0)))) ev.devCat = CAT_EXTRACTOR;
         else if (nameIsPlug) ev.devCat = CAT_TOOL_PLUG;
         else if (isFestoolRemote || isGattBtnAdv || isBurstBtnAdv || hasBtnSvc || nameIsSwitch) ev.devCat = CAT_BUTTON;
         else if ((isFestoolSvc || isFestoolMfg) && parsedSoc >= 0) ev.devCat = CAT_BATTERY;
@@ -1011,6 +1044,7 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
         if (mon->btnType > 0 && !mon->isGatt && !mon->canAdv && knownGattOnly) {
             mon->isGatt = true;
             mon->canGatt = true;
+            mon->isPrimary = true;
             mon->activeRaw = "GATT:FFE0/HID";
             if (!isGattMacConnectedOrBusy(addr)) {
                 mon->gattReady = false;
@@ -1037,26 +1071,28 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
                 bool busyOrConn = isGattMacConnectedOrBusy(addr);
                 bool alreadyActiveBtn = (mon->btnPhase != BTN_IDLE);
                 parsedState = ((gIdx >= 0 && gattSlots[gIdx].pressed) || alreadyActiveBtn) ? 1 : 0;
-                if (!busyOrConn) {
-                    bool isDirectedWake = (advType == 1);
-                    bool allowWakePreTrig = isDirectedWake || (mon->canAdv && !mon->periodicBeacon) || (mon->isGatt && !mon->periodicBeacon);
-                    bool canPreTrig = (!isScanRsp &&
-                                       allowWakePreTrig &&
+                if (!busyOrConn && !isScanRsp) {
+                    // Paired GATT buttons: ignore slow unbonded ADV_IND keep-alives; connect & pre-trigger ONLY on targeted wake (advType == 1) or during initial pairing (!gattReady)
+                    bool isTargetedWake = (advType == 1);
+                    bool isBootedAndConnected = (connState == STATE_CONNECTED && connectedAtMs > 0 && elapsedMs(ev.ts, connectedAtMs) >= 500UL);
+                    bool canPreTrig = (isBootedAndConnected &&
+                                       isTargetedWake &&
                                        mon->gattReady &&
                                        !monConfiguring &&
                                        !mon->waitReleaseAfterPair &&
                                        mon->pairHoldGuardUntilMs == 0 &&
                                        !alreadyActiveBtn &&
-                                       !isGattPending(addr) &&
                                        !isGattBackedOff(addr, ev.ts) &&
                                        pairedMac.length() > 0);
                     if (canPreTrig) {
                         mon->wakePreTriggered = true;
                         parsedState = 1;
-                        LOGF("[GATT BTN] Wake packet pre-trigger -> %s at %u%%\n", addr.c_str(), (unsigned)monSpeed);
+                        LOGF("[GATT BTN] Targeted wake pre-trigger -> %s at %u%%\n", addr.c_str(), (unsigned)monSpeed);
                         onButtonPacket(addr, (uint8_t)monSpeed, ev.ts, true);
                     }
-                    enqueueGattConnect(addr, aType, monBtnType, (uint8_t)monSpeed, false, canPreTrig);
+                    if (isTargetedWake || !mon->gattReady) {
+                        enqueueGattConnect(addr, aType, monBtnType, (uint8_t)monSpeed, canPreTrig, canPreTrig);
+                    }
                 }
             } else if (!monConfiguring && !isScanRsp) {
                 if (parsedState == -2) {
@@ -1075,8 +1111,23 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
                     mqttDevicesDirty = true;
                 }
                 mon->lastWatts = parsedWatts;
-                uint16_t onThr = (mon->wattsThr >= 5) ? mon->wattsThr : 60;
-                effState = ((uint32_t)parsedWatts >= onThr) ? 1 : 0;
+                uint16_t floorW = (mon->wattsThr >= 5) ? mon->wattsThr : 70;
+                constexpr uint8_t OFF_CONFIRM_PKTS = 3;
+                if ((uint32_t)parsedWatts >= floorW) {
+                    mon->offConfirmHits = 0;
+                    effState = 1;
+                } else if (mon->toolActive) {
+                    if (mon->offConfirmHits < 20) mon->offConfirmHits++;
+                    if (mon->offConfirmHits >= OFF_CONFIRM_PKTS) {
+                        effState = 0;
+                        mon->offConfirmHits = 0;
+                    } else {
+                        effState = 1;
+                    }
+                } else {
+                    mon->offConfirmHits = 0;
+                    effState = 0;
+                }
                 parsedState = effState;
             }
             if (effState == 1) {
@@ -1160,7 +1211,7 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
 
 void drainScanEvents(unsigned long now) {
     ScanEvent ev; int processed = 0;
-    while (processed < 32 && popScanEvent(ev)) { processSingleScanEvent(ev, now); processed++; }
+    while (processed < 64 && popScanEvent(ev)) { processSingleScanEvent(ev, now); processed++; }
 }
 
 struct ExtConnTaskParams {
@@ -1199,13 +1250,13 @@ void startBleConnect(const String& macStr, uint8_t forcedType) {
     esp_coex_preference_set(ESP_COEX_PREFER_BT);
     LOGF("[BLE] >>> Connecting to Extractor (GATT App): %s ...\n", macStr.c_str());
 
-    uint8_t addrType = 0;
+    uint8_t addrType = pairedAddrType;
     if (forcedType != 255) addrType = forcedType;
     else for (const auto& item : bleList) if (item.address.equalsIgnoreCase(macStr)) { addrType = item.addrType; break; }
     addrType = inferRandomAddrType(macStr, addrType);
 
     if (!pClient) { pClient = NimBLEDevice::createClient(); pClient->setClientCallbacks(new ClientCallbacks(), false); }
-    pClient->setConnectTimeout((forcedType == 255) ? 2000 : 1200);
+    pClient->setConnectTimeout(2200);
 
     ExtConnTaskParams* taskParams = new ExtConnTaskParams();
     taskParams->client = pClient;

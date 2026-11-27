@@ -64,8 +64,8 @@ void publishExtractorTelemetry(unsigned long now) {
     const char* stateStr = (currentPowerState == 1) ? "ON" : "OFF";
     uint8_t liveOvr = 0;
     if (webUiDemandActive) liveOvr = webUiSpeedOverride;
-    else if (hoseMomentaryActive) { MonitoredDevice* s = findMonitoredByMac(activeHoseMomMac); if (s) liveOvr = s->liveSpeedOverride; }
-    else if (hoseToggleDemandActive) { MonitoredDevice* s = findMonitoredByMac(activeHoseToggleMac); if (s) liveOvr = s->liveSpeedOverride; }
+    else if (primaryMomentaryActive) { MonitoredDevice* s = findMonitoredByMac(activePrimaryMomMac); if (s) liveOvr = s->liveSpeedOverride; }
+    else if (primaryToggleDemandActive) { MonitoredDevice* s = findMonitoredByMac(activePrimaryToggleMac); if (s) liveOvr = s->liveSpeedOverride; }
     else if (btnToggleDemandActive) { MonitoredDevice* s = findMonitoredByMac(activeBtnToggleMac); if (s) liveOvr = s->liveSpeedOverride; }
     else if (toolBattDemandActive) { MonitoredDevice* s = findMonitoredByMac(activeToolBattMac); if (s) liveOvr = s->liveSpeedOverride; }
 
@@ -173,7 +173,7 @@ void publishDevicesTelemetry(unsigned long now) {
         if (m.btnType > 0) {
             doc["connection_type"] = m.isGatt ? "GATT" : "ADV";
             doc["gatt_connected"] = gattLinked;
-            doc["hose_mode"] = (m.isGatt && m.isHose);
+            doc["primary_mode"] = (m.isGatt && m.isPrimary);
             doc["toggle_active"] = m.toggleActive;
             doc["momentary_active"] = m.momActive;
         }

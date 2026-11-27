@@ -8,7 +8,7 @@ void resetAllMonitoredButtonGestures(bool clearLatched = true);
 void syncButtonDemandsFromMonitored();
 void syncToolBattDemandFromMonitored(unsigned long now);
 void clearAllButtonToggles();
-void clearOtherHoseButtonStates(const String& activeMac);
+void clearOtherPrimaryButtonStates(const String& activeMac);
 
 bool isAnyPrimaryDemandActive();
 MonitoredDevice* getWinningStandardDevice(bool* isWebUiWon = nullptr);

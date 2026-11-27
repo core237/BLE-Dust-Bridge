@@ -29,7 +29,7 @@ static const size_t SCAN_QUEUE_CAP = 64;
 
 static const unsigned long ADV_TOGGLE_TAP_RELEASE_MS  = 500UL;
 static const unsigned long BTN_MOMENTARY_TAP_MAX_MS   = 380UL;
-static const unsigned long BTN_GATT_TAP_WINDOW_MS     = 300UL;
+static const unsigned long BTN_GATT_TAP_WINDOW_MS     = 450UL;
 
 static const int MAX_GATT_BTN_SLOTS = 2;
 static const int MAX_GATT_PENDING = 4;
