@@ -14,10 +14,10 @@ A Bluetooth bridge for controlling Festool dust extractors with an M5Stack AtomS
 * **Automatic Tool On/Off (Shelly Gen4 Plug):** Automatically starts and stops your dust extractor when a corded tool powers on or off through a **Shelly Gen4** smart plug (`shelly_dust_beacon.js`), with a configurable wattage cutoff threshold.
 * **Unlimited Passively Monitored Buttons:** Monitor an unlimited number of passive BLE broadcast switches simultaneously without exhausting Bluetooth connection slots—place dedicated switches at every tool station across your shop.
 * **Per-Button Preset Suction Speeds:** Assign a custom preset extractor speed to each individual button so every tool station automatically runs at its ideal suction level.
-* **Remote Suction Speed Adjustment:** When enabled on the switch toggled as **Primary**, double-tap (`2x`) or triple-tap (`3x`) the primary wireless switch while the extractor is running to step suction speed up or down remotely without walking back to the vacuum.
-* **Momentary Press-and-Hold Mode:** When enabled on the switch toggled as **Primary**, the extractor runs only while that primary button is held down and stops immediately upon release.
-* **Built-In Web Dashboard & OTA Updates:** Pair devices, assign per-button speeds and switch modes, view live telemetry, and install firmware updates over Wi-Fi via the hosted web UI (`http://dustbridge.local`).
-* **Home Assistant & MQTT Ready:** Publishes device states, extractor telemetry, and control topics over MQTT.
+* **Remote Suction Speed Adjustment:** Only with compatable switches (NOT CT-F I due to its firmware), double-tap (`2x`) or triple-tap (`3x`)  while the extractor is running to step suction speed up or down remotely without walking back to the vacuum.
+* **Momentary Press-and-Hold Mode:** Only with compatable switches (NOT CT-F I due to its firmware) the extractor runs only while  button is held down and stops immediately upon release.
+* **Built-In Web Dashboard & OTA Updates:** Pair devices, assign per-button speeds, view live telemetry, and install firmware updates over Wi-Fi via the hosted web UI (`http://dustbridge.local`).
+* **Home Assistant & MQTT Ready:** Publishes device states, extractor telemetry, and control topics over MQTT. (not thoroughly tested)
 
 ## Web UI Preview
 
@@ -38,7 +38,7 @@ The following specific models are hardware verified with **BLE-Dust-Bridge** (ot
 | **Passive / GATT Button** | Wireless PTT Switch (Passive or GATT) | [Amazon (`B0C2DH24FJ`)](https://www.amazon.com/dp/B0C2DH24FJ) |
 | **Smart Power Plug** | Shelly Plug US Gen4 | [Amazon (`B0G2YY8TCJ`)](https://www.amazon.com/dp/B0G2YY8TCJ) |
 
-> **Note on choosing a Primary Switch (`CT-F I` vs. `PTT` Buttons):** The **Festool CT-F I (`578499`)** works well as a secondary trigger, but is generally unsuitable as a **primary** switch due to its long internal timeouts between transmissions. For instant response, reliable `2x`/`3x` tap speed stepping, and momentary press-and-hold control, use a dedicated **Passive or GATT PTT switch** as your primary button.
+
 
 ## Web Installer
 
