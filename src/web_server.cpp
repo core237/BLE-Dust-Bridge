@@ -125,7 +125,7 @@ static void buildStatusJson(String& out) {
     }
 
     doc["state"] = (connState == STATE_CONNECTED ? "CONNECTED" : (connState == STATE_CONNECTING ? "CONNECTING" : "DISCONNECTED"));
-    doc["fw_version"] = "1.2.1";
+    doc["fw_version"] = "1.2.2";
     doc["auth_en"] = auth_en;
     doc["power"] = currentPowerState; doc["speed"] = currentSuctionPct;
     doc["preset_speed"] = activePresetSpeed; doc["override_speed"] = getActiveLiveSpeedOverride();
