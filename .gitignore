@@ -4,3 +4,9 @@
 .vscode/launch.json
 .vscode/ipch
 .DS_Store
+
+# Local BLE sniffer logs & scratch scripts
+*.log
+pair_and_dump_ptt.py
+record_78c5_packets.py
+sniff_78c5_link.py
