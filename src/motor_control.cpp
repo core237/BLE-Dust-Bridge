@@ -52,7 +52,7 @@ void syncButtonDemandsFromMonitored() {
 
     for (const auto& m : monitoredList) {
         if (m.btnType == 0) continue;
-        bool isPrimaryGatt = (m.isPrimary && m.isGatt);
+        bool isPrimaryGatt = ((m.isPrimary || !m.canAdv) && m.isGatt);
         if (m.momActive && isPrimaryGatt) {
             if (!anyPrimaryMom || m.btnPressStartMs >= newestPrimaryMomTs) {
                 anyPrimaryMom = true; newestPrimaryMomTs = m.btnPressStartMs; bestPrimaryMomMac = m.address; bestPrimaryMomSpd = m.momSpeed;
@@ -286,7 +286,7 @@ void executeToggleTapAction(const String& mac, uint8_t presetSpd, uint8_t taps, 
     MonitoredDevice* targetMon = findMonitoredByMac(mac);
     if (!targetMon) return;
 
-    bool isPrimaryGatt = (targetMon->isPrimary && targetMon->isGatt);
+    bool isPrimaryGatt = ((targetMon->isPrimary || !targetMon->canAdv) && targetMon->isGatt);
     const char* roleTag = isPrimaryGatt ? "PRIMARY TOGGLE" : "BTN TOGGLE";
 
     if (taps == 1) {
@@ -354,7 +354,7 @@ void onButtonRelease(const String& mac, unsigned long now) {
     MonitoredDevice* m = findMonitoredByMac(mac);
     if (!m || m->btnPhase == BTN_IDLE) return;
 
-    bool isPrimaryBtn = (m->isPrimary && m->isGatt);
+    bool isPrimaryBtn = ((m->isPrimary || !m->canAdv) && m->isGatt);
     if (isPrimaryBtn && m->primaryHoldActivated) {
         m->primaryHoldActivated = false;
         m->momActive = false;
@@ -400,7 +400,7 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
         m->btnLastSeqByte = seqByte;
     }
 
-    bool isPrimaryBtn = (m->isPrimary && m->isGatt);
+    bool isPrimaryBtn = ((m->isPrimary || !m->canAdv) && m->isGatt);
 
     if (m->btnPhase == BTN_IDLE) {
         m->btnPhase = BTN_HELD;
@@ -431,21 +431,12 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
         m->btnPressStartMs = now;
         m->btnLastPacketMs = now;
         m->btnTapCount++;
-        if (isPrimaryBtn && m->momActive) {
-            m->momActive = false;
-            m->liveSpeedOverride = 0;
-            syncButtonDemandsFromMonitored();
-            if (!isAnyPrimaryDemandActive() && !hoseClearActive) {
-                forceStopNow = true;
-                demandDirty = true;
-            }
-        }
         return;
     }
 
     if (m->btnPhase == BTN_HELD) {
         m->btnLastPacketMs = now;
-        if (isPrimaryBtn && !m->primaryHoldActivated && elapsedMs(now, m->btnPressStartMs) >= BTN_MOMENTARY_TAP_MAX_MS) {
+        if (isPrimaryBtn && m->btnTapCount <= 1 && !m->primaryHoldActivated && elapsedMs(now, m->btnPressStartMs) >= BTN_MOMENTARY_TAP_MAX_MS) {
             m->primaryHoldActivated = true;
             m->btnTapCount = 0;
             if (m->toggleActive) {
@@ -470,7 +461,7 @@ void serviceButtonGestures(unsigned long now) {
 
         if (m.btnPhase == BTN_WAIT_TAP) {
             if (elapsedMs(now, m.btnReleaseMs) >= BTN_GATT_TAP_WINDOW_MS) {
-                if (m.isPrimary && m.isGatt) {
+                if ((m.isPrimary || !m.canAdv) && m.isGatt) {
                     uint8_t taps = m.btnTapCount;
                     m.btnTapCount = 0;
                     m.btnPhase = BTN_IDLE;
@@ -502,13 +493,14 @@ void serviceButtonGestures(unsigned long now) {
                         }
                     } else if (taps >= 2) {
                         if (m.momActive) {
+                            clearOtherPrimaryButtonStates(m.address);
                             m.momActive = false;
+                            m.toggleActive = true;
+                            m.toggleActivatedMs = now;
                             m.liveSpeedOverride = 0;
                             syncButtonDemandsFromMonitored();
-                            if (!isAnyPrimaryDemandActive() && !hoseClearActive) {
-                                forceStopNow = true;
-                                demandDirty = true;
-                            }
+                            hoseClearActive = false;
+                            demandDirty = true;
                         }
                         if (isAnyPrimaryDemandActive() && !hoseClearActive && !primaryMomentaryActive) {
                             if (taps == 2) {

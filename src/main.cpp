@@ -61,48 +61,22 @@ void setup() {
     espClient.setTimeout(1);
     mqttClient.setBufferSize(2048);
 
+    // Start SoftAP ('dustbridge_setup') immediately in AP_STA mode while connecting STA in parallel
     WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect(false);
-    delay(50);
+    WiFi.mode(WIFI_AP_STA);
     WiFi.setSleep(WIFI_PS_MIN_MODEM);
     WiFi.setHostname(hostname);
     WiFi.setAutoReconnect(false);
-    bool connected = false;
-    for (size_t wi = 0; wi < wifiList.size(); wi++) {
-        const SavedWiFi& w = wifiList[wi];
-        if (w.ssid.length() == 0) continue;
-        LOGF("[WIFI] Trying (%u/%u): %s...\n", (unsigned)(wi + 1), (unsigned)wifiList.size(), w.ssid.c_str());
-        setAtomLed(96, 72, 0);
-        WiFi.begin(w.ssid.c_str(), w.pass.c_str());
-        int attempts = 0;
-        while (WiFi.status() != WL_CONNECTED && attempts < 40) {
-            delay(250);
-            attempts++;
-            bool yellowOn = ((attempts / 2) % 2) == 0;
-            setAtomLed(yellowOn ? 96 : 0, yellowOn ? 72 : 0, 0);
-        }
-        if (WiFi.status() == WL_CONNECTED) {
-            connected = true;
-            setAtomLed(96, 72, 0); // Solid Yellow: Wi-Fi credentials confirmed
-            wifiConfirmedSolidUntilMs = millis() + 1500UL;
-            WiFi.setSleep(WIFI_PS_MIN_MODEM);
-            LOGF("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
-            break;
-        }
-        WiFi.disconnect(false);
-        delay(100);
+    WiFi.softAP("dustbridge_setup", nullptr, 1);
+    delay(100);
+    LOGLN("[WIFI] Setup AP 'dustbridge_setup' ready immediately! IP: 192.168.4.1");
+
+    if (!wifiList.empty() && wifiList[0].ssid.length() > 0) {
+        LOGF("[WIFI] Connecting in background to: %s...\n", wifiList[0].ssid.c_str());
+        WiFi.begin(wifiList[0].ssid.c_str(), wifiList[0].pass.c_str());
+        bgWifiIdx = 1;
     }
 
-    if (!connected) {
-        WiFi.mode(WIFI_AP_STA);
-        WiFi.softAP("dustbridge_setup");
-        LOGLN("[WIFI] Fallback AP 'dustbridge_setup' started! IP: 192.168.4.1 (continuing background STA retries...)");
-    } else {
-        if (MDNS.begin(hostname)) LOGLN("[MDNS] Started: http://dustbridge.local");
-        if (mqtt_en && mqtt_ip.length() > 0) mqttClient.setServer(mqtt_ip.c_str(), mqtt_port);
-    }
-    WiFi.setSleep(WIFI_PS_MIN_MODEM);
     ledBootMode = false;
     updateStatusLed(millis());
 
@@ -271,15 +245,18 @@ void loop() {
     static bool bgStaPromoted = false;
     static unsigned long lastBgWifiTryMs = 0;
     static unsigned long staConnectedAtMs = 0;
+    uint8_t apClients = WiFi.softAPgetStationNum();
+
     if (WiFi.status() == WL_CONNECTED) {
         if (staConnectedAtMs == 0) staConnectedAtMs = now;
+        // Wait 6.5s so any phone handoff modal finishes before closing SoftAP
         if (!bgStaPromoted && !wifiScanInProgress && WiFi.getMode() == WIFI_AP_STA && (now - staConnectedAtMs > 6500UL)) {
             bgStaPromoted = true;
             installerWifiScreenActive = false;
             wifiConfirmedSolidUntilMs = now + 1500UL;
             WiFi.softAPdisconnect(true);
             WiFi.mode(WIFI_STA);
-            LOGF("[WIFI] Background STA connected! IP: %s\n", WiFi.localIP().toString().c_str());
+            LOGF("[WIFI] STA connected! IP: %s (closed setup AP)\n", WiFi.localIP().toString().c_str());
             if (MDNS.begin(hostname)) LOGLN("[MDNS] Started: http://dustbridge.local");
             if (mqtt_en && mqtt_ip.length() > 0) mqttClient.setServer(mqtt_ip.c_str(), mqtt_port);
         }
@@ -288,17 +265,18 @@ void loop() {
         if (WiFi.getMode() == WIFI_AP_STA || WiFi.getMode() == WIFI_AP) {
             bgStaPromoted = false;
         }
-        if (!wifiList.empty() && !wifiScanInProgress && !improvProvPending && !extConnTaskRunning.load() && !gattBtnTaskRunning.load() &&
-               connState != STATE_CONNECTING &&
-               (lastBgWifiTryMs == 0 || elapsedMs(now, lastBgWifiTryMs) >= 15000UL)) {
-        lastBgWifiTryMs = now;
-        const SavedWiFi& w = wifiList[bgWifiIdx % wifiList.size()];
-        bgWifiIdx++;
-        if (w.ssid.length() > 0) {
-            WiFi.disconnect(false);
-            LOGF("[WIFI] Background retry: %s...\n", w.ssid.c_str());
-            WiFi.begin(w.ssid.c_str(), w.pass.c_str());
-        }
+        // Pause background STA channel-hopping whenever a phone is actively connected to dustbridge_setup
+        if (apClients == 0 && !wifiList.empty() && !wifiScanInProgress && !improvProvPending &&
+            !extConnTaskRunning.load() && !gattBtnTaskRunning.load() && connState != STATE_CONNECTING &&
+            (now >= 8000UL) && (lastBgWifiTryMs == 0 || elapsedMs(now, lastBgWifiTryMs) >= 20000UL)) {
+            lastBgWifiTryMs = now;
+            const SavedWiFi& w = wifiList[bgWifiIdx % wifiList.size()];
+            bgWifiIdx++;
+            if (w.ssid.length() > 0) {
+                WiFi.disconnect(false);
+                LOGF("[WIFI] Background retry: %s...\n", w.ssid.c_str());
+                WiFi.begin(w.ssid.c_str(), w.pass.c_str());
+            }
         }
     }
 

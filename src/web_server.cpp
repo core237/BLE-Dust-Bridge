@@ -123,7 +123,7 @@ static void buildStatusJson(String& out) {
     }
 
     doc["state"] = (connState == STATE_CONNECTED ? "CONNECTED" : (connState == STATE_CONNECTING ? "CONNECTING" : "DISCONNECTED"));
-    doc["fw_version"] = "1.1.0";
+    doc["fw_version"] = "1.2.0";
     doc["auth_en"] = auth_en;
     doc["power"] = currentPowerState; doc["speed"] = currentSuctionPct;
     doc["preset_speed"] = activePresetSpeed; doc["override_speed"] = getActiveLiveSpeedOverride();
@@ -196,7 +196,7 @@ static void buildStatusJson(String& out) {
         JsonObject o = arr.createNestedObject();
         o["name"] = it.name; o["adv_name"] = it.advName; o["address"] = it.address; o["addr_type"] = it.addrType; o["rssi"] = it.rssi;
         o["isKnownDevice"] = it.isKnownDevice; o["type"] = it.type; o["soc"] = it.soc; o["state"] = it.state;
-        o["can_adv"] = it.canAdv; o["can_gatt"] = it.canGatt;
+        o["can_adv"] = it.canAdv; o["can_gatt"] = it.canGatt; o["pairing_mode"] = it.pairingMode;
         o["age"] = elapsedMs(now, it.lastSeen);
         if (it.matNum > 0) {
             o["mat_num"] = it.matNum;
@@ -253,6 +253,12 @@ void setupWebServer() {
     server.on("/favicon.ico", HTTP_GET, []() {
         server.send(204, "image/x-icon", "");
     });
+    server.on("/generate_204", HTTP_GET, []() { server.send(204, "text/plain", ""); });
+    server.on("/gen_204", HTTP_GET, []() { server.send(204, "text/plain", ""); });
+    server.on("/hotspot-detect.html", HTTP_GET, []() {
+        server.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>");
+    });
+    server.on("/connecttest.txt", HTTP_GET, []() { server.send(200, "text/plain", "Microsoft Connect Test"); });
 
     server.on("/login", HTTP_GET, []() {
         if (!auth_en || isSessionAuthenticated()) {
@@ -577,15 +583,17 @@ void setupWebServer() {
         wifiScanInProgress = true;
         NimBLEDevice::getScan()->stop();
         esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
+        WiFi.setSleep(WIFI_PS_MIN_MODEM);
 
         // Keep AP active if currently in AP/AP_STA mode so local client session stays alive
         wifi_mode_t curMode = WiFi.getMode();
         if (curMode == WIFI_AP) {
             WiFi.mode(WIFI_AP_STA);
+            delay(50);
         }
 
         WiFi.disconnect(false);
-        delay(80);
+        delay(150);
         if (testPass.length() > 0) {
             WiFi.begin(testSsid.c_str(), testPass.c_str());
         } else {
@@ -595,14 +603,15 @@ void setupWebServer() {
         unsigned long startMs = millis();
         bool verified = false;
         int verifiedRssi = 0;
-        while (elapsedMs(millis(), startMs) < 9000UL) {
+        while (elapsedMs(millis(), startMs) < 12000UL) {
             wl_status_t st = WiFi.status();
-            if (st == WL_CONNECTED) {
+            if (st == WL_CONNECTED && WiFi.localIP() != IPAddress(0, 0, 0, 0)) {
                 verified = true;
                 verifiedRssi = WiFi.RSSI();
                 break;
             }
-            if (st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL) {
+            // Ignore transient status codes during the initial 2.5s channel scan
+            if (elapsedMs(millis(), startMs) > 2500UL && (st == WL_CONNECT_FAILED || st == WL_NO_SSID_AVAIL)) {
                 break;
             }
             delay(100);
@@ -867,8 +876,9 @@ void setupWebServer() {
                             i.isGatt = true;
                             if (i.canAdv) i.periodicBeacon = false;
                             i.activeRaw = "GATT:FFE0/HID";
-                            i.gattReady = i.gattReady || isGattMacConnectedOrBusy(m);
-                            shouldConnectGatt = !i.gattReady;
+                            i.gattReady = isGattMacConnectedOrBusy(m);
+                            // For dual-mode switches (canAdv), wait for the user's press-and-hold wake packet to pair
+                            shouldConnectGatt = (!i.gattReady && !i.canAdv);
                             bType = i.btnType;
                             spd = i.speed;
                             if (i.gattReady) {
@@ -989,7 +999,7 @@ void setupWebServer() {
                 }
             }
             if (!inBle) {
-                bleList.push_back({name, initAdvName, mac, addrType, rssi, true, devCatToTypeStr(initDevCat), now, -1, 0, initMatNum, -1, raw, canAdvInit, canGattInit, 0, 0, 0, 0});
+                bleList.push_back({name, initAdvName, mac, addrType, rssi, true, devCatToTypeStr(initDevCat), now, -1, 0, initMatNum, -1, raw, canAdvInit, canGattInit, false, 0, 0, 0, 0});
             }
         }
         sendJsonStatus();

@@ -93,6 +93,7 @@ struct BleEntry {
     unsigned long lastSeen; int soc; int state; uint32_t matNum; int32_t watts; String rawData;
     bool canAdv;
     bool canGatt;
+    bool pairingMode;
     unsigned long lastPrimaryAdvMs;
     uint8_t fastCadenceHits;
     uint8_t slowCadenceHits;

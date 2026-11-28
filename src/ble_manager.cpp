@@ -404,6 +404,18 @@ static void finishGattButtonConnect(unsigned long now) {
 
     if (subCount == 0) {
         LOGF("[GATT BTN] [Slot %d] No notify/indicate characteristic found on %s; disconnecting.\n", slotIdx, macStr.c_str());
+        for (auto& m : monitoredList) {
+            if (m.address.equalsIgnoreCase(macStr) && m.canAdv) {
+                m.isPrimary = false;
+                m.isGatt = false;
+                m.canGatt = false;
+                m.gattReady = true;
+                m.activeRaw = "ADV:STREAM";
+                saveMonitoredToNvs();
+                LOGF("[PRIMARY ROLE] %s has no GATT button service -> reverted to Passive switch.\n", macStr.c_str());
+                break;
+            }
+        }
         s.client->disconnect();
         bool wasWakePre = s.wakePreTriggered;
         portENTER_CRITICAL(&gattSlotMux);
@@ -458,9 +470,11 @@ static void finishGattButtonConnect(unsigned long now) {
             if (wasInitialPair) {
                 saveNvsNeeded = true;
                 m.waitReleaseAfterPair = alreadyPressed;
-                m.pairHoldGuardUntilMs = alreadyPressed ? 0UL : (now + 350UL);
+                m.pairHoldGuardUntilMs = now + 1200UL;
                 if (alreadyPressed) {
                     LOGF("[GATT BTN] %s paired while held -> release button before arming.\n", macStr.c_str());
+                } else {
+                    LOGF("[GATT BTN] %s paired -> armed & ready.\n", macStr.c_str());
                 }
             } else if (m.wakePreTriggered) {
                 m.wakePreTriggered = false;
@@ -601,8 +615,9 @@ void serviceGattButton(unsigned long now) {
         }
 
         if (monPtr->waitReleaseAfterPair) {
-            if (relNow || (!isPressedNow && edges == 0 && monPtr->pairHoldGuardUntilMs == 0)) {
+            if (relNow || (!isPressedNow && edges == 0)) {
                 monPtr->waitReleaseAfterPair = false;
+                monPtr->pairHoldGuardUntilMs = now + 1200UL;
                 LOGF("[GATT BTN] %s released -> armed & ready.\n", slotMac.c_str());
             }
             continue;
@@ -895,7 +910,11 @@ class ScanCallbacks : public NimBLEScanCallbacks {
         if (isBenchPilot && !isPairedHit) ev.devCat = CAT_OTHER;
         else if (isPairedHit || ((isFestoolSvc || isFestoolMfg) && !isFestoolRemote && (nameIsExtractor || (isConnectable && parsedSoc < 0)))) ev.devCat = CAT_EXTRACTOR;
         else if (nameIsPlug) ev.devCat = CAT_TOOL_PLUG;
-        else if (isFestoolRemote || isGattBtnAdv || isBurstBtnAdv || hasBtnSvc || nameIsSwitch) ev.devCat = CAT_BUTTON;
+        else if (isFestoolRemote || isGattBtnAdv || isBurstBtnAdv || hasBtnSvc || nameIsSwitch) {
+            ev.devCat = CAT_BUTTON;
+            // Switches are only GATT-capable if they advertise 0xFFE0/0x1812, HID appearance, or directed wake (advType==1)
+            isConnectable = (isGattBtnAdv || hasBtnSvc || advType == 1);
+        }
         else if ((isFestoolSvc || isFestoolMfg) && parsedSoc >= 0) ev.devCat = CAT_BATTERY;
         else if (isFestoolSvc || isFestoolMfg) ev.devCat = CAT_FESTOOL;
         else ev.devCat = CAT_OTHER;
@@ -952,7 +971,14 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
     }
     if (blePtr) {
         if (ev.isConnectable) blePtr->canGatt = true;
-        if (isBurstBtnAdv) blePtr->canAdv = true;
+        if (isBurstBtnAdv) {
+            blePtr->canAdv = true;
+            if (ev.devCat == CAT_BUTTON && !ev.isConnectable) blePtr->canGatt = false;
+        }
+        if (ev.devCat == CAT_EXTRACTOR && !isScanRsp) {
+            if (ev.isBurstBtnAdv) blePtr->pairingMode = true;
+            else if (ev.hasFlags06) blePtr->pairingMode = false;
+        }
         if (!isScanRsp) {
             if (blePtr->lastPrimaryAdvMs > 0) {
                 unsigned long dt = elapsedMs(ev.ts, blePtr->lastPrimaryAdvMs);
@@ -1072,11 +1098,13 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
                 bool alreadyActiveBtn = (mon->btnPhase != BTN_IDLE);
                 parsedState = ((gIdx >= 0 && gattSlots[gIdx].pressed) || alreadyActiveBtn) ? 1 : 0;
                 if (!busyOrConn && !isScanRsp) {
-                    // Paired GATT buttons: ignore slow unbonded ADV_IND keep-alives; connect & pre-trigger ONLY on targeted wake (advType == 1) or during initial pairing (!gattReady)
-                    bool isTargetedWake = (advType == 1);
+                    // Multi-Primary rotation: pre-trigger & rotate into the 2 GATT slots on directed wake (advType == 1)
+                    // OR burst wake from dual-mode Primary switches (mon->canAdv && !mon->periodicBeacon)
+                    bool isDirectedWake = (advType == 1);
+                    bool allowWakePreTrig = isDirectedWake || (mon->canAdv && !mon->periodicBeacon);
                     bool isBootedAndConnected = (connState == STATE_CONNECTED && connectedAtMs > 0 && elapsedMs(ev.ts, connectedAtMs) >= 500UL);
                     bool canPreTrig = (isBootedAndConnected &&
-                                       isTargetedWake &&
+                                       allowWakePreTrig &&
                                        mon->gattReady &&
                                        !monConfiguring &&
                                        !mon->waitReleaseAfterPair &&
@@ -1087,14 +1115,14 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
                     if (canPreTrig) {
                         mon->wakePreTriggered = true;
                         parsedState = 1;
-                        LOGF("[GATT BTN] Targeted wake pre-trigger -> %s at %u%%\n", addr.c_str(), (unsigned)monSpeed);
+                        LOGF("[GATT BTN] Wake packet pre-trigger -> %s at %u%%\n", addr.c_str(), (unsigned)monSpeed);
                         onButtonPacket(addr, (uint8_t)monSpeed, ev.ts, true);
                     }
-                    if (isTargetedWake || !mon->gattReady) {
+                    if (allowWakePreTrig || !mon->gattReady) {
                         enqueueGattConnect(addr, aType, monBtnType, (uint8_t)monSpeed, canPreTrig, canPreTrig);
                     }
                 }
-            } else if (!monConfiguring && !isScanRsp) {
+            } else if (!monConfiguring && !isScanRsp && ev.ts >= 2500UL) {
                 if (parsedState == -2) {
                     // CT-F I remotes are strictly ON/OFF via MAN button; ignore Bluetooth pairing button packets
                 } else if (parsedState == 0) {
@@ -1203,7 +1231,8 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
                 }
             }
         }
-        BleEntry newEntry = {friendlyName, name, addr, aType, rssi, isKnown, devType, ev.ts, parsedSoc, parsedState, parsedMatNum, parsedWatts, parsedRaw, isBurstBtnAdv, ev.isConnectable, isScanRsp ? 0UL : ev.ts, 0, 0, 0};
+        bool initPairingMode = (ev.devCat == CAT_EXTRACTOR && !isScanRsp && ev.isBurstBtnAdv);
+        BleEntry newEntry = {friendlyName, name, addr, aType, rssi, isKnown, devType, ev.ts, parsedSoc, parsedState, parsedMatNum, parsedWatts, parsedRaw, isBurstBtnAdv, ev.isConnectable, initPairingMode, isScanRsp ? 0UL : ev.ts, 0, 0, 0};
         bleList.push_back(newEntry);
         mqttDevicesDirty = true;
     }
