@@ -1,6 +1,8 @@
 #include <WiFi.h>
 #include <esp_coexist.h>
 #include <Update.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <algorithm>
 #include "app_state.h"
@@ -123,7 +125,7 @@ static void buildStatusJson(String& out) {
     }
 
     doc["state"] = (connState == STATE_CONNECTED ? "CONNECTED" : (connState == STATE_CONNECTING ? "CONNECTING" : "DISCONNECTED"));
-    doc["fw_version"] = "1.2.0";
+    doc["fw_version"] = "1.2.1";
     doc["auth_en"] = auth_en;
     doc["power"] = currentPowerState; doc["speed"] = currentSuctionPct;
     doc["preset_speed"] = activePresetSpeed; doc["override_speed"] = getActiveLiveSpeedOverride();
@@ -1024,6 +1026,62 @@ void setupWebServer() {
             demandDirty = true;
         }
         sendJsonStatus();
+    });
+
+    server.on("/api/ota/github", HTTP_POST, []() {
+        if (!checkAuth(true)) return;
+        StaticJsonDocument<512> doc;
+        if (deserializeJson(doc, server.arg("plain")) != DeserializationError::Ok) {
+            server.send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
+            return;
+        }
+        String url = doc["url"] | "";
+        if (!url.startsWith("https://github.com/") && !url.startsWith("https://objects.githubusercontent.com/")) {
+            server.send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid GitHub release URL\"}");
+            return;
+        }
+        LOGF("[OTA] Downloading firmware directly from GitHub: %s\n", url.c_str());
+        NimBLEDevice::getScan()->stop();
+        esp_coex_preference_set(ESP_COEX_PREFER_WIFI);
+
+        WiFiClientSecure client;
+        client.setInsecure();
+        HTTPClient http;
+        http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+        http.setTimeout(20000);
+        if (!http.begin(client, url)) {
+            setCoexScanner();
+            server.send(502, "application/json", "{\"ok\":false,\"error\":\"HTTPS begin failed\"}");
+            return;
+        }
+        int code = http.GET();
+        if (code != HTTP_CODE_OK) {
+            http.end();
+            setCoexScanner();
+            server.send(502, "application/json", "{\"ok\":false,\"error\":\"GitHub HTTP " + String(code) + "\"}");
+            return;
+        }
+        int contentLen = http.getSize();
+        if (!Update.begin(contentLen > 0 ? (size_t)contentLen : UPDATE_SIZE_UNKNOWN)) {
+            http.end();
+            setCoexScanner();
+            server.send(500, "application/json", "{\"ok\":false,\"error\":\"Not enough flash space\"}");
+            return;
+        }
+        WiFiClient* stream = http.getStreamPtr();
+        size_t written = Update.writeStream(*stream);
+        bool ok = (contentLen <= 0 || written == (size_t)contentLen) && Update.end(true);
+        http.end();
+        if (!ok) {
+            Update.abort();
+            setCoexScanner();
+            server.send(500, "application/json", "{\"ok\":false,\"error\":\"Firmware stream write failed\"}");
+            return;
+        }
+        LOGF("[OTA] Flashed %u bytes from GitHub -> rebooting...\n", (unsigned)written);
+        server.send(200, "application/json", "{\"ok\":true}");
+        requestReboot = true;
+        rebootTimer = millis();
     });
 
     server.on("/update", HTTP_GET, []() { if (!checkAuth(false)) return; server.send_P(200, "text/html", OTA_HTML); });
