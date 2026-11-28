@@ -659,7 +659,8 @@ void serviceGattButton(unsigned long now) {
 void setCoexScanner() {
     if (extConnTaskRunning.load() || gattBtnTaskRunning.load() || wifiScanInProgress || Update.isRunning()) return;
     unsigned long now = millis();
-    bool webActive = (lastWebUiActivityMs > 0 && elapsedMs(now, lastWebUiActivityMs) < 3000UL);
+    bool priorityBle = isAnyButtonGestureBusy() || (currentPowerState == 1) || isAnyPrimaryDemandActive();
+    bool webActive = !priorityBle && (lastWebUiActivityMs > 0 && elapsedMs(now, lastWebUiActivityMs) < 3000UL);
     esp_coex_prefer_t desiredCoex = webActive ? ESP_COEX_PREFER_BALANCE : ESP_COEX_PREFER_BT;
     static esp_coex_prefer_t lastCoexPref = (esp_coex_prefer_t)-1;
     if (desiredCoex != lastCoexPref) {
@@ -679,7 +680,7 @@ void setCoexScanner() {
     pScan->setDuplicateFilter(false);
     pScan->setActiveScan(false);
     // Restored from Presep baseline: 160/80 (100ms cycle / 50ms listen)
-    pScan->setInterval(160);
+    pScan->setInterval(80);
     pScan->setWindow(80);
     pScan->setMaxResults(0);
     scannerConfigured = true;
@@ -912,8 +913,8 @@ class ScanCallbacks : public NimBLEScanCallbacks {
         else if (nameIsPlug) ev.devCat = CAT_TOOL_PLUG;
         else if (isFestoolRemote || isGattBtnAdv || isBurstBtnAdv || hasBtnSvc || nameIsSwitch) {
             ev.devCat = CAT_BUTTON;
-            // Switches are only GATT-capable if they advertise 0xFFE0/0x1812, HID appearance, or directed wake (advType==1)
-            isConnectable = (isGattBtnAdv || hasBtnSvc || advType == 1);
+            // CT-F I remotes are strictly On/Off Only; continuous-broadcast & GATT switches support Speed Control
+            isConnectable = !isFestoolRemote && (isBurstBtnAdv || isGattBtnAdv || hasBtnSvc || advType == 1);
         }
         else if ((isFestoolSvc || isFestoolMfg) && parsedSoc >= 0) ev.devCat = CAT_BATTERY;
         else if (isFestoolSvc || isFestoolMfg) ev.devCat = CAT_FESTOOL;
@@ -939,6 +940,9 @@ class ScanCallbacks : public NimBLEScanCallbacks {
         }
         portEXIT_CRITICAL(&monMacMux);
         if (!ev.isKnown && !isPairedHit && !isMonHit && !(isScanRsp && nameIsExtractor)) {
+            return;
+        }
+        if ((currentPowerState == 1 || isAnyPrimaryDemandActive()) && !isPairedHit && !isMonHit) {
             return;
         }
 
@@ -973,7 +977,7 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
         if (ev.isConnectable) blePtr->canGatt = true;
         if (isBurstBtnAdv) {
             blePtr->canAdv = true;
-            if (ev.devCat == CAT_BUTTON && !ev.isConnectable) blePtr->canGatt = false;
+            if (ev.isFestoolRemote) blePtr->canGatt = false;
         }
         if (ev.devCat == CAT_EXTRACTOR && !isScanRsp) {
             if (ev.isBurstBtnAdv) blePtr->pairingMode = true;
@@ -1054,6 +1058,13 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
         if (mon->btnType > 0 && knownCanAdv && !mon->canAdv) {
             mon->canAdv = true;
             mon->periodicBeacon = false;
+            if (!ev.isFestoolRemote) {
+                mon->canGatt = true;
+                mon->isPrimary = true;
+                mon->isGatt = false;
+                mon->gattReady = true;
+                mon->activeRaw = "ADV:STREAM";
+            }
             if (!needSaveMonitored) needSaveMonitoredAtMs = now;
             needSaveMonitored = true;
         }
@@ -1129,7 +1140,8 @@ static void processSingleScanEvent(const ScanEvent& ev, unsigned long now) {
                     if (mon->btnPhase == BTN_HELD) onButtonRelease(addr, ev.ts);
                 } else {
                     parsedState = 1;
-                    onButtonPacket(addr, (uint8_t)monSpeed, ev.ts, false, ev.btnSeq);
+                    int16_t seqArg = mon->isPrimary ? -1 : ev.btnSeq;
+                    onButtonPacket(addr, (uint8_t)monSpeed, ev.ts, false, seqArg);
                 }
             }
         } else if (monBtnType == 0 && (parsedWatts >= 0 || parsedState != -1)) {

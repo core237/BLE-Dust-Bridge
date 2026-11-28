@@ -58,7 +58,6 @@ struct MonitoredDevice {
     uint32_t matNum; uint8_t devCat;
     uint16_t wattsThr; int32_t lastWatts;
     uint8_t offConfirmHits = 0;
-    int8_t lastShellySeq = -1;
     BtnNormPhase btnPhase = BTN_IDLE;
     bool primaryHoldActivated = false;
     int16_t btnLastSeqByte = -1;
@@ -284,7 +283,7 @@ extern uint8_t userManualSpeed;
 // Inline Utilities & Logging Macros
 // ============================================================================
 inline unsigned long elapsedMs(unsigned long now, unsigned long past) {
-    return (now >= past) ? (now - past) : 0UL;
+    return (unsigned long)(now - past);
 }
 
 inline void logWriteAtomic(const char* buf, int len) {

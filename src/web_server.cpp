@@ -125,7 +125,7 @@ static void buildStatusJson(String& out) {
     }
 
     doc["state"] = (connState == STATE_CONNECTED ? "CONNECTED" : (connState == STATE_CONNECTING ? "CONNECTING" : "DISCONNECTED"));
-    doc["fw_version"] = "1.2.2";
+    doc["fw_version"] = "1.2.3";
     doc["auth_en"] = auth_en;
     doc["power"] = currentPowerState; doc["speed"] = currentSuctionPct;
     doc["preset_speed"] = activePresetSpeed; doc["override_speed"] = getActiveLiveSpeedOverride();
@@ -188,7 +188,7 @@ static void buildStatusJson(String& out) {
         o["watts"] = (liveBle && liveBle->watts >= 0) ? liveBle->watts : m.lastWatts;
         o["speed"] = m.speed; o["btnType"] = m.btnType;
         o["is_gatt"] = m.isGatt; o["can_adv"] = m.canAdv; o["can_gatt"] = m.canGatt;
-        o["is_primary"] = (m.isGatt && (!m.canAdv || m.isPrimary)); o["gatt_linked"] = gattLinked; o["btn_live"] = btnLive;
+        o["is_primary"] = (m.isPrimary || (m.isGatt && !m.canAdv)); o["gatt_linked"] = gattLinked; o["btn_live"] = btnLive;
         o["cfg"] = isMonitoredConfiguring(m, now);
         o["await_rel"] = m.waitReleaseAfterPair;
     }
@@ -981,7 +981,7 @@ void setupWebServer() {
 
             if (findMonitoredByMac(mac) == nullptr) {
                 bool gReady = (!isGattInit) || alreadyConnGatt;
-                bool initPrimary = (isGattInit && !canAdvInit);
+                bool initPrimary = (btnType > 0 && !isLegacyRemote && (isGattInit || canAdvInit));
                 uint8_t resolvedAddrType = inferRandomAddrType(mac, addrType);
                 monitoredList.push_back({mac, name, initAdvName, (uint8_t)speed, btnType, raw, false, false, 0, isGattInit, gReady, false, 0, initPrimary, canAdvInit, initMatNum, initDevCat, 60, -1, canGattInit, resolvedAddrType});
             }

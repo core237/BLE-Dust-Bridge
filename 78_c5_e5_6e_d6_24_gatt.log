@@ -1,0 +1,18 @@
+[23:47:37.754] Scanning for 78:C5:E5:6E:D6:24... Press the button on the remote to wake it if asleep.
+[23:47:53.073] Target not matched by MAC/Mfg. Listing visible devices so you can pick it if macOS masked the MAC:
+[23:47:58.125]   Candidate: Name='None' | CoreBT_ID=026E2E32-F568-D9E9-13B0-4E6C5BBEAE2A | RSSI=-87dBm | UUIDs=[]
+[23:47:58.126]   Candidate: Name='None' | CoreBT_ID=8981F8AA-E1FE-697E-C80F-9FA617AD0E73 | RSSI=-72dBm | UUIDs=[]
+[23:47:58.127]   Candidate: Name='Shelly-Dust' | CoreBT_ID=DE8E62E4-AD2D-5340-4DDC-9FD77FCBE825 | RSSI=-62dBm | UUIDs=[]
+[23:47:58.128]   Candidate: Name='None' | CoreBT_ID=A1E5B971-3AAE-5F38-625A-1C1B32E9E1A6 | RSSI=-74dBm | UUIDs=[]
+[23:47:58.128]   Candidate: Name='None' | CoreBT_ID=06917580-658C-8CD0-F6DB-CDA70E9206BE | RSSI=-84dBm | UUIDs=[]
+[23:47:58.128]   Candidate: Name='None' | CoreBT_ID=1945D573-4214-DB43-F9B2-367FE5634B31 | RSSI=-68dBm | UUIDs=[]
+[23:47:58.128]   Candidate: Name='PTT-1' | CoreBT_ID=889071E0-1823-FD48-6C9A-D981C2C3891C | RSSI=-60dBm | UUIDs=['0000ffe0-0000-1000-8000-00805f9b34fb']
+[23:47:58.129]   Candidate: Name='None' | CoreBT_ID=2E4FA476-CC58-5985-7584-0457F60D7C08 | RSSI=-59dBm | UUIDs=[]
+[23:47:58.129]   Candidate: Name='None' | CoreBT_ID=DFC94DAB-93CE-CFD9-4CDA-4A8A6A7917A6 | RSSI=-80dBm | UUIDs=[]
+[23:47:58.129]   Candidate: Name='None' | CoreBT_ID=049EB758-D82D-7168-62CD-6DA2DB394FAC | RSSI=-76dBm | UUIDs=[]
+[23:47:58.129]   Candidate: Name='None' | CoreBT_ID=5647178C-62A2-94BB-6A3E-17B9AFE1A2B1 | RSSI=-88dBm | UUIDs=[]
+[23:47:58.130]   Candidate: Name='None' | CoreBT_ID=828A1FD2-8C72-065F-30AC-2FDE4DFF8E01 | RSSI=-59dBm | UUIDs=['0000fe39-0000-1000-8000-00805f9b34fb']
+[23:47:58.130]   Candidate: Name='ELK-BLEDOM  0' | CoreBT_ID=36A14368-3F50-4096-B3AA-744752FCB202 | RSSI=-87dBm | UUIDs=[]
+[23:47:58.130]   Candidate: Name='None' | CoreBT_ID=FB2A17C8-24A8-254A-6DD8-535122EC966D | RSSI=-79dBm | UUIDs=[]
+[23:47:58.130]   Candidate: Name='None' | CoreBT_ID=C7FD7BEC-A83D-3940-10A8-EBA4338C1845 | RSSI=-73dBm | UUIDs=[]
+[23:47:58.130]   Candidate: Name='ShieldTV_CI2' | CoreBT_ID=C2D1476A-EF8F-FF70-6646-BC9BAB1A3A08 | RSSI=-81dBm | UUIDs=['00003456-0000-1000-8000-00805f9b34fb']

@@ -1,6 +1,6 @@
 {
   "name": "BLE Dust Bridge",
-  "version": "1.0.0",
+  "version": "1.2.2",
   "new_install_prompt_erase": false,
   "improv": true,
   "builds": [

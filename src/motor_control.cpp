@@ -52,7 +52,7 @@ void syncButtonDemandsFromMonitored() {
 
     for (const auto& m : monitoredList) {
         if (m.btnType == 0) continue;
-        bool isPrimaryGatt = ((m.isPrimary || !m.canAdv) && m.isGatt);
+        bool isPrimaryGatt = (m.isPrimary || (!m.canAdv && m.isGatt));
         if (m.momActive && isPrimaryGatt) {
             if (!anyPrimaryMom || m.btnPressStartMs >= newestPrimaryMomTs) {
                 anyPrimaryMom = true; newestPrimaryMomTs = m.btnPressStartMs; bestPrimaryMomMac = m.address; bestPrimaryMomSpd = m.momSpeed;
@@ -286,7 +286,7 @@ void executeToggleTapAction(const String& mac, uint8_t presetSpd, uint8_t taps, 
     MonitoredDevice* targetMon = findMonitoredByMac(mac);
     if (!targetMon) return;
 
-    bool isPrimaryGatt = ((targetMon->isPrimary || !targetMon->canAdv) && targetMon->isGatt);
+    bool isPrimaryGatt = (targetMon->isPrimary || (!targetMon->canAdv && targetMon->isGatt));
     const char* roleTag = isPrimaryGatt ? "PRIMARY TOGGLE" : "BTN TOGGLE";
 
     if (taps == 1) {
@@ -354,7 +354,7 @@ void onButtonRelease(const String& mac, unsigned long now) {
     MonitoredDevice* m = findMonitoredByMac(mac);
     if (!m || m->btnPhase == BTN_IDLE) return;
 
-    bool isPrimaryBtn = ((m->isPrimary || !m->canAdv) && m->isGatt);
+    bool isPrimaryBtn = (m->isPrimary || (!m->canAdv && m->isGatt));
     if (isPrimaryBtn && m->primaryHoldActivated) {
         m->primaryHoldActivated = false;
         m->momActive = false;
@@ -378,7 +378,7 @@ void onButtonRelease(const String& mac, unsigned long now) {
         return;
     }
 
-    if (m->isGatt) {
+    if (m->isGatt || isPrimaryBtn) {
         if (m->btnTapCount == 0) m->btnTapCount = 1;
         m->btnPhase = BTN_WAIT_TAP;
         m->btnReleaseMs = now;
@@ -400,7 +400,7 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
         m->btnLastSeqByte = seqByte;
     }
 
-    bool isPrimaryBtn = ((m->isPrimary || !m->canAdv) && m->isGatt);
+    bool isPrimaryBtn = (m->isPrimary || (!m->canAdv && m->isGatt));
 
     if (m->btnPhase == BTN_IDLE) {
         m->btnPhase = BTN_HELD;
@@ -409,7 +409,7 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
         m->btnTapCount = 1;
         m->primaryHoldActivated = false;
 
-        if (!isGatt) {
+        if (!isGatt && !isPrimaryBtn) {
             executeToggleTapAction(mac, presetSpd, 1, now);
         } else if (isPrimaryBtn) {
             bool underlyingRunning = (webUiDemandActive || btnToggleDemandActive || toolBattDemandActive ||
@@ -428,15 +428,18 @@ void onButtonPacket(const String& mac, uint8_t presetSpd, unsigned long now, boo
 
     if (m->btnPhase == BTN_WAIT_TAP) {
         m->btnPhase = BTN_HELD;
-        m->btnPressStartMs = now;
         m->btnLastPacketMs = now;
+        if (!isGatt && elapsedMs(now, m->btnReleaseMs) < ADV_MIN_TAP_GAP_MS) {
+            return;
+        }
+        m->btnPressStartMs = now;
         m->btnTapCount++;
         return;
     }
 
     if (m->btnPhase == BTN_HELD) {
         m->btnLastPacketMs = now;
-        if (isPrimaryBtn && m->btnTapCount <= 1 && !m->primaryHoldActivated && elapsedMs(now, m->btnPressStartMs) >= BTN_MOMENTARY_TAP_MAX_MS) {
+        if (isPrimaryBtn && !m->toggleActive && m->btnTapCount <= 1 && !m->primaryHoldActivated && elapsedMs(now, m->btnPressStartMs) >= BTN_MOMENTARY_TAP_MAX_MS) {
             m->primaryHoldActivated = true;
             m->btnTapCount = 0;
             if (m->toggleActive) {
@@ -461,7 +464,7 @@ void serviceButtonGestures(unsigned long now) {
 
         if (m.btnPhase == BTN_WAIT_TAP) {
             if (elapsedMs(now, m.btnReleaseMs) >= BTN_GATT_TAP_WINDOW_MS) {
-                if ((m.isPrimary || !m.canAdv) && m.isGatt) {
+                if (m.isPrimary || (!m.canAdv && m.isGatt)) {
                     uint8_t taps = m.btnTapCount;
                     m.btnTapCount = 0;
                     m.btnPhase = BTN_IDLE;
@@ -523,7 +526,11 @@ void serviceButtonGestures(unsigned long now) {
             continue;
         }
         if (m.btnPhase == BTN_HELD && !m.isGatt) {
-            if (elapsedMs(now, m.btnLastPacketMs) > ADV_TOGGLE_TAP_RELEASE_MS) onButtonRelease(m.address, now);
+            unsigned long relWindow = ADV_TOGGLE_TAP_RELEASE_MS;
+            if (m.isPrimary) {
+                relWindow = m.primaryHoldActivated ? ADV_HOLD_RELEASE_MS : ADV_TAP_RELEASE_MS;
+            }
+            if (elapsedMs(now, m.btnLastPacketMs) > relWindow) onButtonRelease(m.address, now);
         }
     }
 }

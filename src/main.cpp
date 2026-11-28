@@ -243,11 +243,13 @@ void loop() {
     }
 
     static bool bgStaPromoted = false;
+    static bool bgWifiExhausted = false;
     static unsigned long lastBgWifiTryMs = 0;
     static unsigned long staConnectedAtMs = 0;
     uint8_t apClients = WiFi.softAPgetStationNum();
 
     if (WiFi.status() == WL_CONNECTED) {
+        bgWifiExhausted = false;
         if (staConnectedAtMs == 0) staConnectedAtMs = now;
         // Wait 6.5s so any phone handoff modal finishes before closing SoftAP
         if (!bgStaPromoted && !wifiScanInProgress && WiFi.getMode() == WIFI_AP_STA && (now - staConnectedAtMs > 6500UL)) {
@@ -265,18 +267,30 @@ void loop() {
         if (WiFi.getMode() == WIFI_AP_STA || WiFi.getMode() == WIFI_AP) {
             bgStaPromoted = false;
         }
-        // Pause background STA channel-hopping whenever a phone is actively connected to dustbridge_setup
-        if (apClients == 0 && !wifiList.empty() && !wifiScanInProgress && !improvProvPending &&
-            !extConnTaskRunning.load() && !gattBtnTaskRunning.load() && connState != STATE_CONNECTING &&
-            (now >= 8000UL) && (lastBgWifiTryMs == 0 || elapsedMs(now, lastBgWifiTryMs) >= 20000UL)) {
-            lastBgWifiTryMs = now;
-            const SavedWiFi& w = wifiList[bgWifiIdx % wifiList.size()];
-            bgWifiIdx++;
-            if (w.ssid.length() > 0) {
-                WiFi.disconnect(false);
-                LOGF("[WIFI] Background retry: %s...\n", w.ssid.c_str());
-                WiFi.begin(w.ssid.c_str(), w.pass.c_str());
+        size_t maxBgAttempts = wifiList.size() * 2;
+        bool blePriorityActive = isAnyButtonGestureBusy() || (currentPowerState == 1) || isAnyPrimaryDemandActive() || hoseClearActive;
+        if (!bgWifiExhausted && maxBgAttempts > 0 && bgWifiIdx < maxBgAttempts) {
+            if (apClients == 0 && !blePriorityActive && !wifiScanInProgress && !improvProvPending &&
+                !extConnTaskRunning.load() && !gattBtnTaskRunning.load() && connState != STATE_CONNECTING &&
+                (now >= 8000UL) && (lastBgWifiTryMs == 0 || elapsedMs(now, lastBgWifiTryMs) >= 10000UL)) {
+                lastBgWifiTryMs = now;
+                const SavedWiFi& w = wifiList[bgWifiIdx % wifiList.size()];
+                bgWifiIdx++;
+                if (w.ssid.length() > 0) {
+                    WiFi.disconnect(false);
+                    LOGF("[WIFI] Discovery pass %u/2: %s...\n", (unsigned)((bgWifiIdx - 1) / wifiList.size() + 1), w.ssid.c_str());
+                    WiFi.begin(w.ssid.c_str(), w.pass.c_str());
+                }
             }
+        } else if (!bgWifiExhausted && !wifiScanInProgress && (now >= 8000UL) &&
+                   (lastBgWifiTryMs == 0 || elapsedMs(now, lastBgWifiTryMs) >= 10000UL)) {
+            bgWifiExhausted = true;
+            WiFi.disconnect(false);
+            if (WiFi.getMode() != WIFI_AP) {
+                WiFi.mode(WIFI_AP);
+            }
+            esp_coex_preference_set(ESP_COEX_PREFER_BT);
+            LOGLN("[WIFI] No saved networks found after 2 passes -> hotspot only (BLE priority locked).");
         }
     }
 

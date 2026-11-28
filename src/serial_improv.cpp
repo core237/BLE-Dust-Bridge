@@ -136,7 +136,7 @@ static void handleImprovRpcCommand(const uint8_t* data, uint8_t len, unsigned lo
             improvSendState(0x02);
         }
     } else if (cmd == 0x03) { // GET_DEVICE_INFO
-        improvSendRpcResult(0x03, { "BLE Dust Bridge", "1.0.0", "ESP32-S3", "BLE-Dust-Bridge" });
+        improvSendRpcResult(0x03, { "BLE Dust Bridge", "1.2.2", "ESP32-S3", "BLE-Dust-Bridge" });
     } else if (cmd == 0x04) { // GET_WIFI_NETWORKS
         if (extConnTaskRunning.load() || gattBtnTaskRunning.load() || connState == STATE_CONNECTING) {
             improvSendRpcResult(0x04, {});

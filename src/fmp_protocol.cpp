@@ -391,9 +391,9 @@ void startTelemetryPoll(bool fullRefresh) {
 
 void serviceTelemetryPoll(unsigned long now) {
     if (!telemPollRequested) return;
+    if (connState != STATE_CONNECTED) { telemPollRequested = false; telemAwaitingReply = false; return; }
     if (isAnyPrimaryDemandActive() || hoseClearActive || demandDirty || isAnyButtonGestureBusy()) return;
-    if (!telemPollRequested || connState != STATE_CONNECTED) { telemPollRequested = false; telemAwaitingReply = false; return; }
-    if (demandDirty || hoseClearActive || (elapsedMs(now, lastControlTxMs) < 1500UL)) return;
+    if (elapsedMs(now, lastControlTxMs) < 1500UL) return;
     if (telemAwaitingReply) { if (elapsedMs(now, lastTelemStepMs) < 1200UL) return; }
     else { if (elapsedMs(now, lastTelemStepMs) < 450UL) return; }
     lastTelemStepMs = now; telemAwaitingReply = true;
