@@ -65,34 +65,24 @@ jobs:
             firmware.bin
             installer/bldb-factory.bin
 
-      - name: Upload Installer Bundle for Pages Job
-        uses: actions/upload-artifact@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: web-installer-files
-          path: installer/
-          retention-days: 1
+          path: installer
 
   deploy-pages:
     needs: build-and-release
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download Installer Bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: web-installer-files
-          path: installer
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Web Installer Artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: installer
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
